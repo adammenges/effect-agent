@@ -1,15 +1,15 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentPolicy, SubagentRuntime } from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId, RunId, TurnId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import { DurableWorkerBinding, type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { type DurableSubmitOptions } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigests, Digest } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
 import { Effect, Layer, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { DurableWorkerBinding, type ResolvedBinding } from "effect-agent/agent-registration";
+import { type DurableSubmitOptions } from "effect-agent/durable-agent-runtime";
+import { IdGenerator } from "effect-agent/id-generator";
+import { ThreadId, RunId, TurnId } from "effect-agent/identifiers";
+import { DefinitionDigests, Digest } from "effect-agent/records";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentPolicy } from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
 import { type Prompt, LanguageModel, Model, Toolkit, type Response } from "effect/unstable/ai";
 
 /**
@@ -213,7 +213,7 @@ export const makeSoakBindings = Effect.fn("SoakFixtures.makeSoakBindings")(funct
   const childModel = promptScriptedModel("soak-child", () => finalParts('{"answer":"child"}'));
   const childBinding = Agent.withModel(soakChildDefinition, childModel);
 
-  const delegationLayer = SubagentRuntime.layer(soakDelegation, childBinding, {
+  const delegationLayer = Subagent.layer(soakDelegation, childBinding, {
     mapChildFailure: (failure) => SoakDelegationFailed.make({ childErrorTag: failure._tag }),
     durable: { targetDigests: SOAK_CHILD_DIGEST_STRINGS },
   }).pipe(Layer.provide(delegationSupport));

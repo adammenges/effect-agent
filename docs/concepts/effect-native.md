@@ -18,7 +18,7 @@ Public asynchronous operations return `Effect` or `Stream`. This includes tool h
 instructions, approval decisions, stores, and platform capabilities.
 
 ```ts twoslash
-import * as AgentRuntime from "@effect-agent/engine/AgentRuntime";
+import { AgentRuntime } from "effect-agent";
 import { Effect, Stream } from "effect";
 import { TravelPlanner } from "./planner";
 const input = { city: "Lisbon", days: 2 };
@@ -65,7 +65,7 @@ Definitions describe behavior and requirements. Layers provide models, toolkits,
 sandboxes, clocks, identifiers, authorization, and platform services.
 
 ```ts twoslash
-import * as AgentRuntime from "@effect-agent/engine/AgentRuntime";
+import { AgentRuntime } from "effect-agent";
 import { AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { Effect, Layer } from "effect";
 import { TravelPlanner } from "./planner";
@@ -79,8 +79,8 @@ const RuntimeLive = AnthropicLanguageModel.model("claude-sonnet-5").pipe(
 const program = AgentRuntime.run(TravelPlanner, input).pipe(Effect.provide(RuntimeLive));
 ```
 
-The travel planner's `AppLive` supplies the provider client, tool handlers, IDs, and transient
-history. `Layer.provideMerge` supplies the model's client dependency and keeps those services
+The travel planner's `AppLive` supplies the provider client, tool handlers, and in-memory
+history. IDs have an overridable default. `Layer.provideMerge` supplies the model's client dependency and keeps those services
 available to the run.
 
 ## Scope resources {#scope-is-ownership}
@@ -93,7 +93,7 @@ fails, or is interrupted. `start` requires a caller Scope because execution and 
 Requirements from application code remain visible, including any real `Scope` requirement.
 
 ```ts twoslash
-import * as AgentRuntime from "@effect-agent/engine/AgentRuntime";
+import { AgentRuntime } from "effect-agent";
 import { Effect } from "effect";
 import { TravelPlanner } from "./planner";
 const input = { city: "Lisbon", days: 2 };

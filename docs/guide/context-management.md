@@ -60,7 +60,7 @@ Acquire resources needed across turns in a surrounding run Layer or Scope.
 To add application instructions to each request:
 
 ```ts twoslash
-import { RunContextPreparation, type RunContextHook } from "@effect-agent/engine/RunOptions";
+import { RunContextPreparation, type RunContextHook } from "effect-agent/run-options";
 import { Effect, Layer } from "effect";
 import { Prompt } from "effect/unstable/ai";
 
@@ -159,7 +159,7 @@ unknown.
 This source reads a known Markdown note without a store or adapter:
 
 ```ts twoslash
-import * as Memory from "@effect-agent/core/Memory";
+import { Memory } from "effect-agent";
 import {
   MemoryAttribution,
   MemoryContent,
@@ -168,11 +168,8 @@ import {
   MemoryRecallError,
   MemoryRecallLimits,
   MemorySourceReference,
-} from "@effect-agent/core/MemoryReference";
-import {
-  RunContextPreparation,
-  type RunTransientContextHook,
-} from "@effect-agent/engine/RunOptions";
+} from "effect-agent/memory-reference";
+import { RunContextPreparation, type RunTransientContextHook } from "effect-agent/run-options";
 import { Effect, Layer } from "effect";
 import { Prompt } from "effect/unstable/ai";
 
@@ -288,16 +285,13 @@ Keep authorization, credentials, and query policy inside an application service.
 one read method; it does not create a durable copy, write to the corpus, or create embeddings:
 
 ```ts twoslash
-import * as Memory from "@effect-agent/core/Memory";
+import { Memory } from "effect-agent";
 import {
   type MemoryLookup,
   MemoryRecallError,
   MemoryRecallLimits,
-} from "@effect-agent/core/MemoryReference";
-import {
-  RunContextPreparation,
-  type RunTransientContextHook,
-} from "@effect-agent/engine/RunOptions";
+} from "effect-agent/memory-reference";
+import { RunContextPreparation, type RunTransientContextHook } from "effect-agent/run-options";
 import { Context, Effect, Layer } from "effect";
 import { Prompt } from "effect/unstable/ai";
 
@@ -372,9 +366,9 @@ and identity type. Definitions with the same identity fields but different names
 not interchangeable.
 
 ```ts twoslash
-import * as MemoryNamespace from "@effect-agent/core/MemoryNamespace";
-import { MemoryAccess } from "@effect-agent/core/MemoryRevalidation";
-import { MemoryKey, MemoryScope } from "@effect-agent/core/MemoryStore";
+import { MemoryNamespace } from "effect-agent";
+import { MemoryAccess } from "effect-agent/memory-revalidation";
+import { MemoryKey, MemoryScope } from "effect-agent/memory-store";
 import { Schema } from "effect";
 
 const TenantId = Schema.NonEmptyString.pipe(Schema.brand("app/TenantId"));
@@ -470,9 +464,9 @@ The usual recall budget can omit a replacement that no longer fits. Source failu
 the consumer must explicitly choose any optional fallback.
 
 ```ts twoslash
-import * as MemoryNamespace from "@effect-agent/core/MemoryNamespace";
-import { MemoryContent } from "@effect-agent/core/MemoryReference";
-import { MemoryKey, MemoryScope, MemoryWriter } from "@effect-agent/core/MemoryStore";
+import { MemoryNamespace } from "effect-agent";
+import { MemoryContent } from "effect-agent/memory-reference";
+import { MemoryKey, MemoryScope, MemoryWriter } from "effect-agent/memory-store";
 import { Effect, Schema } from "effect";
 
 const TeamMemory = MemoryNamespace.define({
@@ -540,7 +534,7 @@ effort and does not authorize sharing or guarantee privacy.
 For a local persistent source, install the optional SQLite adapter:
 
 ```ts twoslash
-import { memoryStoreLayer } from "@effect-agent/thread/SqlMemoryStore";
+import { memoryStoreLayer } from "effect-agent/sql-memory-store";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Layer } from "effect";
 
@@ -574,7 +568,7 @@ submits an identity-bound intent and receives a queued acknowledgement after per
 Queued means accepted for processing. It does not mean that a fact was accepted, saved, or made
 available to another Thread. Admission adds bounded persistence work and can fail with a typed error.
 
-Use `Remembering.admit(store, intent)` from `effect-agent/Remembering` for admission and
+Use `Remembering.admit(store, intent)` from `effect-agent/remembering` for admission and
 `Remembering.make({ proposal, loadSource, extract, merge, cleanup }).advance(...)` for a finite
 worker pass. The `RememberingStore` module defines the portable Schemas and injectable port.
 Use native Effect AI extraction and source-aware profile callbacks. Provide
@@ -679,16 +673,13 @@ does not become another witness. Applications that extract assistant references 
 the original `originId` instead of assigning independent evidence identity.
 
 ```ts twoslash
-import * as MemoryNamespace from "@effect-agent/core/MemoryNamespace";
-import { MemoryContent } from "@effect-agent/core/MemoryReference";
-import { MemoryKey, MemoryScope, MemoryWrite, MemoryWriter } from "@effect-agent/core/MemoryStore";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import {
-  ActivityPassLimits,
-  processCommittedActivity,
-} from "@effect-agent/thread/CommittedActivity";
-import { ActivityProcessorKey, type PreparedActivity } from "@effect-agent/thread/ActivityStore";
-import { type CanonicalRecordEnvelope } from "@effect-agent/thread/Records";
+import { MemoryNamespace } from "effect-agent";
+import { MemoryContent } from "effect-agent/memory-reference";
+import { MemoryKey, MemoryScope, MemoryWrite, MemoryWriter } from "effect-agent/memory-store";
+import { ThreadId } from "effect-agent/identifiers";
+import { ActivityPassLimits, processCommittedActivity } from "effect-agent/committed-activity";
+import { ActivityProcessorKey, type PreparedActivity } from "effect-agent/activity-store";
+import { type CanonicalRecordEnvelope } from "effect-agent/records";
 import { Clock, DateTime, Effect, Schema } from "effect";
 
 // The application owns this message format and which Threads use it.
@@ -773,8 +764,8 @@ host's existing `ThreadStore` and `Crypto` Layer to the pass as well; the proces
 Thread ownership epochs, `SubmissionLedger`, or engine checkpoints for its own progress.
 
 ```ts twoslash
-import { activityProcessorStoreLayer } from "@effect-agent/storage-sqlite/SqliteActivityStore";
-import { memoryStoreLayer } from "@effect-agent/thread/SqlMemoryStore";
+import { activityProcessorStoreLayer } from "@effect-agent/storage-sqlite/sqlite-activity-store";
+import { memoryStoreLayer } from "effect-agent/sql-memory-store";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Layer } from "effect";
 
@@ -826,14 +817,13 @@ import {
   SemanticQueryLimits,
   indexMemorySource,
   querySemanticMemory,
-} from "@effect-agent/capabilities/SemanticMemory";
-import * as Memory from "@effect-agent/core/Memory";
-import * as MemoryNamespace from "@effect-agent/core/MemoryNamespace";
-import { MemoryAccess } from "@effect-agent/core/MemoryRevalidation";
-import { MemoryKey, MemoryScope } from "@effect-agent/core/MemoryStore";
-import { MemoryRecallLimits } from "@effect-agent/core/MemoryReference";
-import { SemanticMemoryProfile } from "@effect-agent/core/SemanticMemoryIndex";
-import { inMemorySemanticIndexLayer } from "@effect-agent/storage-memory/MemorySemanticIndex";
+} from "effect-agent/semantic-memory";
+import { Memory, MemoryNamespace } from "effect-agent";
+import { MemoryAccess } from "effect-agent/memory-revalidation";
+import { MemoryKey, MemoryScope } from "effect-agent/memory-store";
+import { MemoryRecallLimits } from "effect-agent/memory-reference";
+import { SemanticMemoryProfile } from "effect-agent/semantic-memory-index";
+import { inMemorySemanticIndexLayer } from "@effect-agent/storage-memory/memory-semantic-index";
 import { Effect, Schema } from "effect";
 
 // Keep this Layer alive across refreshes and queries. A new instance starts empty.
@@ -1102,7 +1092,7 @@ Provide `ContextCompactor` directly to the durable host Layer. In this example, 
 application's assembled host Layer:
 
 ```ts
-import { ContextCompactor } from "@effect-agent/engine/ContextCompactor";
+import { ContextCompactor } from "effect-agent/context-compactor";
 import { OpenAiLanguageModel } from "@effect/ai-openai";
 import { Layer } from "effect";
 
@@ -1134,9 +1124,9 @@ with `CompactionError`; admission still checks the final prompt against `context
 For model-directed control, include the native `ContextTools.toolkit` and its handlers:
 
 ```ts
-import * as ContextTools from "@effect-agent/capabilities/ContextTools";
-import { ContextCompactor } from "@effect-agent/engine/ContextCompactor";
-import * as ThreadContextHistory from "@effect-agent/thread/ThreadContextHistory";
+import { ContextTools } from "effect-agent";
+import { ContextCompactor } from "effect-agent/context-compactor";
+import { ThreadContextHistory } from "effect-agent";
 import { Layer } from "effect";
 
 const tools = ContextTools.toolkit;
@@ -1236,7 +1226,7 @@ retrieve evidence removed by compaction, but cannot recover tool bytes discarded
 transient references, or records removed by a separate retention policy. Tightening Tool result
 bounds below these tools' maximum payloads may truncate their results too.
 
-For an indexed adapter, use `@effect-agent/thread/ThreadContextHistoryProjection` to project each
+For an indexed adapter, use `effect-agent/thread-context-history-projection` to project each
 canonical record into eligible retained text or a rollover boundary. Its query normalization and
 snippet matching preserve the native literal, case-folded search semantics. Operational records
 still consume their canonical sequence even when their projection is empty.
@@ -1274,8 +1264,8 @@ adopting longer histories.
 
 ### Manage summaries yourself {#explicit-compaction-artifacts}
 
-`@effect-agent/capabilities` also has an application-managed data path.
-`prepareModelContext` derives bounded text from a `ThreadSnapshot`.
+`effect-agent` also has an application-managed data path.
+`prepareModelContext` derives bounded text from a `Thread.Thread`.
 `digestCompactionSource` binds a `CompactionArtifact` to that source. `applyCompaction` validates
 the artifact before replacing covered view messages with its summary. The application creates,
 stores, and applies the artifact.

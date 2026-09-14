@@ -1,16 +1,14 @@
-import {
-  delegationAllocationFromPolicy,
-  SubagentRuntime,
-} from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { type ThreadId } from "@effect-agent/core/Identifiers";
-import { type RuntimeBinding } from "@effect-agent/engine/AgentRuntime";
-import { DurableWorkerBinding, type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { type DurableSubmitOptions } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "@effect-agent/thread/Records";
-import { Principal, type IdempotencyKey } from "@effect-agent/thread/SubmissionLedger";
 import { Effect, Layer, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableWorkerBinding, type ResolvedBinding } from "effect-agent/agent-registration";
+import { type RuntimeBinding } from "effect-agent/agent-runtime";
+import { type DurableSubmitOptions } from "effect-agent/durable-agent-runtime";
+import { type ThreadId } from "effect-agent/identifiers";
+import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "effect-agent/records";
+import * as Subagent from "effect-agent/subagent";
+import { delegationAllocationFromPolicy } from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { Principal, type IdempotencyKey } from "effect-agent/submission-ledger";
 import { LanguageModel, Model, type Response, type Toolkit } from "effect/unstable/ai";
 
 import { DeterministicIdGeneratorLayer } from "./deterministic-layers.ts";
@@ -253,7 +251,7 @@ export const durableDestinationResearchHandlersLayer = <Provider, ModelProvides,
     ModelRequires
   >,
 ) =>
-  SubagentRuntime.layer(destinationResearchDelegation, childBinding, {
+  Subagent.layer(destinationResearchDelegation, childBinding, {
     mapChildFailure: mapResearchChildFailure,
     durable: { targetDigests: s2ResearcherDigestStrings },
   });

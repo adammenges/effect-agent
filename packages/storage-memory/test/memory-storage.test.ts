@@ -1,40 +1,4 @@
-import { ThreadId, RunId, SubmissionId } from "@effect-agent/core/Identifiers";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { EMPTY_TAIL_DIGEST } from "@effect-agent/thread/Digest";
-import {
-  CanonicalBatch,
-  CanonicalRecord,
-  CanonicalSequence,
-  MAX_PERSISTED_JSON_BYTES,
-  ObservationOffset,
-  ProducerEpoch,
-  RunCompleted,
-  UserInputRecorded,
-  type CanonicalRecordPayload,
-} from "@effect-agent/thread/Records";
-import {
-  threadStoreConformanceCases,
-  threadCheckpointConformanceCases,
-} from "@effect-agent/thread/testing/ThreadStoreConformance";
-import {
-  ThreadProjection,
-  replayThread,
-  replayThreadFromCheckpoint,
-} from "@effect-agent/thread/ThreadProjection";
-import {
-  type AppendResult,
-  CheckpointRejected,
-  ThreadCheckpoint,
-  ThreadExportRequest,
-  ThreadMaterialization,
-  ThreadObservation,
-  ThreadRead,
-  ThreadStore,
-  ThreadStoreError,
-  FencedAppendRequest,
-  LoadCheckpointRequest,
-  SaveCheckpointRequest,
-} from "@effect-agent/thread/ThreadStore";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
 import { NodeCrypto } from "@effect/platform-node";
 import { expect, describe, it } from "@effect/vitest";
 import {
@@ -51,6 +15,42 @@ import {
   Scope,
   Stream,
 } from "effect";
+import { EMPTY_TAIL_DIGEST } from "effect-agent/digest";
+import { ThreadId, RunId, SubmissionId } from "effect-agent/identifiers";
+import {
+  CanonicalBatch,
+  CanonicalRecord,
+  CanonicalSequence,
+  MAX_PERSISTED_JSON_BYTES,
+  ObservationOffset,
+  ProducerEpoch,
+  RunCompleted,
+  UserInputRecorded,
+  type CanonicalRecordPayload,
+} from "effect-agent/records";
+import {
+  threadStoreConformanceCases,
+  threadCheckpointConformanceCases,
+} from "effect-agent/testing/thread-store-conformance";
+import {
+  ThreadProjection,
+  replayThread,
+  replayThreadFromCheckpoint,
+} from "effect-agent/thread-projection";
+import {
+  type AppendResult,
+  CheckpointRejected,
+  ThreadCheckpoint,
+  ThreadExportRequest,
+  ThreadMaterialization,
+  ThreadObservation,
+  ThreadRead,
+  ThreadStore,
+  ThreadStoreError,
+  FencedAppendRequest,
+  LoadCheckpointRequest,
+  SaveCheckpointRequest,
+} from "effect-agent/thread-store";
 
 const testLayer = MemoryThreadStoreLive.pipe(Layer.provide(NodeCrypto.layer));
 

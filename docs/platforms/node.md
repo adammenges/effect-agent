@@ -14,8 +14,8 @@ A bounded worker pool executes registered agents and recovers work after a resta
 bun add @effect-agent/platform-node@beta
 ```
 
-For the examples below, also install `effect@4.0.0-rc.112`, `@effect-agent/core@beta`,
-`@effect-agent/thread@beta`, `@effect/ai-openai@4.0.0-rc.112`, and `@effect/platform-node@4.0.0-rc.112`.
+For the examples below, also install `effect@4.0.0-rc.112`, `effect-agent@beta`,
+`@effect/ai-openai@4.0.0-rc.112`, and `@effect/platform-node@4.0.0-rc.112`.
 Keep framework packages at one release and use compatible [Effect and provider packages](../guide/getting-started#installation-and-compatibility).
 
 ## Create an agent
@@ -74,7 +74,7 @@ Use `NodeDurableAgentRuntime.layerRegistered` when you own execution, as in the
 
 The service class's existing `NodeDurableHost.layerRegistered`, `layerStack`, and `layer`
 constructors remain available for manually managed hosts. Import the class from
-`@effect-agent/platform-node/NodeDurableHost` when using these APIs; their workers start only
+`@effect-agent/platform-node/node-durable-host` when using these APIs; their workers start only
 when you run `host.runResolvedWorkers`. The module-level `NodeDurableHost.layer` shown above
 owns worker startup and is the default for an application.
 

@@ -1,10 +1,10 @@
-import * as MemoryNamespace from "@effect-agent/core/MemoryNamespace";
-import { MemoryContent } from "@effect-agent/core/MemoryReference";
-import { MemoryKey, MemoryScope } from "@effect-agent/core/MemoryStore";
-import { ActivityProcessorKey } from "@effect-agent/thread/ActivityStore";
-import { ActivityPassResult } from "@effect-agent/thread/CommittedActivity";
-import { Digest } from "@effect-agent/thread/Records";
 import { Schema } from "effect";
+import { ActivityProcessorKey } from "effect-agent/activity-store";
+import { ActivityPassResult } from "effect-agent/committed-activity";
+import * as MemoryNamespace from "effect-agent/memory-namespace";
+import { MemoryContent } from "effect-agent/memory-reference";
+import { MemoryKey, MemoryScope } from "effect-agent/memory-store";
+import { Digest } from "effect-agent/records";
 
 export const MEMORY_NAMESPACE = MemoryNamespace.define({
   name: "test/committed-memory",

@@ -1,8 +1,5 @@
 ---
-"@effect-agent/core": minor
-"@effect-agent/engine": minor
-"@effect-agent/capabilities": minor
-"@effect-agent/thread": minor
+"effect-agent": minor
 ---
 
 Derive delegation schemas and mappings from child definitions, inherit omitted policy defaults within shared reservation limits, and accept model Layers directly for subagent execution and durable registration.

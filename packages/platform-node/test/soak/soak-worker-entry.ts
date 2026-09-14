@@ -1,12 +1,12 @@
-import { type ThreadId } from "@effect-agent/core/Identifiers";
 import {
   NodeDurableAgentRuntime,
   type NodeDurableAgentRuntimeOptions,
-} from "@effect-agent/platform-node/NodeDurableAgentRuntime";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import { SubmissionLedger } from "@effect-agent/thread/SubmissionLedger";
+} from "@effect-agent/platform-node/node-durable-agent-runtime";
 import { NodeRuntime } from "@effect/platform-node";
 import { Cause, Duration, Effect, Exit, Layer, Option, Schema, Stream } from "effect";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { type ThreadId } from "effect-agent/identifiers";
+import { SubmissionLedger } from "effect-agent/submission-ledger";
 
 import { SOAK_DEPLOYMENT_ID, SoakEnv, makeSoakBindings } from "./soak-fixtures.ts";
 

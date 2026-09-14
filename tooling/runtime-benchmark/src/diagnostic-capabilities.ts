@@ -2,7 +2,7 @@ import {
   ScriptedModel,
   type ScriptedStreamPart,
   type ScriptedTurnInput,
-} from "@effect-agent/testing/ScriptedModel";
+} from "@effect-agent/testing/scripted-model";
 import {
   Clock,
   Context,
@@ -18,20 +18,18 @@ import {
   Tracer,
 } from "effect";
 import { Agent, AgentRuntime } from "effect-agent";
-import * as EphemeralThreads from "effect-agent/EphemeralThreads";
-import { RunId, ThreadId } from "effect-agent/Identifiers";
-import { IdGenerator } from "effect-agent/IdGenerator";
-import * as Mcp from "effect-agent/Mcp";
-import * as McpClient from "effect-agent/McpClient";
-import * as Memory from "effect-agent/Memory";
-import * as MemoryNamespace from "effect-agent/MemoryNamespace";
+import { RunId, ThreadId } from "effect-agent/identifiers";
+import * as Mcp from "effect-agent/mcp";
+import * as McpClient from "effect-agent/mcp-client";
+import * as Memory from "effect-agent/memory";
+import * as MemoryNamespace from "effect-agent/memory-namespace";
 import {
   MemoryAttribution,
   MemoryContent,
   MemoryLookup,
   MemoryPassage,
   MemoryRecallLimits,
-} from "effect-agent/MemoryReference";
+} from "effect-agent/memory-reference";
 import {
   applyMemoryWrite,
   MemoryKey,
@@ -39,13 +37,13 @@ import {
   MemoryScope,
   MemoryWriter,
   type MemoryDocument,
-} from "effect-agent/MemoryStore";
-import * as Remembering from "effect-agent/Remembering";
-import * as Protocol from "effect-agent/RememberingStore";
-import { toRunThreadOptions } from "effect-agent/RunHooks";
-import * as Subagent from "effect-agent/Subagent";
-import * as Reservations from "effect-agent/SubagentReservations";
-import { ThreadHistory } from "effect-agent/ThreadHistory";
+} from "effect-agent/memory-store";
+import * as Remembering from "effect-agent/remembering";
+import * as Protocol from "effect-agent/remembering-store";
+import { toRunThreadOptions } from "effect-agent/run-hooks";
+import * as Subagent from "effect-agent/subagent";
+import * as Reservations from "effect-agent/subagent-reservations";
+import * as Thread from "effect-agent/thread";
 import { AiError, Model, Prompt, Tool, Toolkit } from "effect/unstable/ai";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 
@@ -57,8 +55,23 @@ import {
   type DiagnosticMark,
   type DiagnosticResult,
 } from "./diagnostic-contracts.js";
+import { BenchmarkHistoryLive, BenchmarkRetainsHistory } from "./history.js";
 
 export { capabilityCases } from "./diagnostic-cases.js";
+
+// The same comparison fixture runs against releases before the module-level Subagent.layer API.
+const selectSubagentLayer = <BuildLayer>(module: {
+  readonly layer?: BuildLayer;
+  readonly SubagentRuntime?: { readonly layer: BuildLayer };
+}): BuildLayer => {
+  const layer = module.layer ?? module.SubagentRuntime?.layer;
+
+  if (layer === undefined) throw new Error("Compared release has no supported Subagent Layer");
+
+  return layer;
+};
+
+const subagentLayer = selectSubagentLayer(Subagent);
 
 /** Faults are test-only fixture inputs; the public diagnostic inventory always uses "none". */
 export const DiagnosticFault = Context.Reference("runtime-benchmark/DiagnosticFault", {
@@ -116,7 +129,7 @@ const historyCase = Effect.fn("diagnostic.history")(function* (workload: Diagnos
   const progress = yield* DiagnosticProgress;
 
   yield* progress.phase("setup");
-  const threads = yield* EphemeralThreads.EphemeralThreads;
+  const threads = yield* Thread.Store;
   const threadId = ThreadId.make("diagnostic-thread-0");
   const seedRun = RunId.make("diagnostic-seed");
   const runId = RunId.make("diagnostic-operation");
@@ -143,7 +156,7 @@ const historyCase = Effect.fn("diagnostic.history")(function* (workload: Diagnos
   yield* progress.phase("verification");
   yield* check(snapshot.nextSequence === prefix + suffix, "History sequence mismatch");
   yield* check(
-    (yield* encodedPrompt(EphemeralThreads.threadPrompt(snapshot))) === expected,
+    (yield* encodedPrompt(Thread.toPrompt(snapshot))) === expected,
     "History native messages changed",
   );
   yield* check(
@@ -183,7 +196,7 @@ const historyRunCase = Effect.fn("diagnostic.historyRun")(function* (workload: D
   const progress = yield* DiagnosticProgress;
 
   yield* progress.phase("setup");
-  const threads = yield* EphemeralThreads.EphemeralThreads;
+  const threads = yield* Thread.Store;
   const threadId = ThreadId.make("diagnostic-run-thread");
   const runId = RunId.make("diagnostic-run");
   const prefix = historyPrompt(workload.parameters.prefix ?? 256);
@@ -293,8 +306,8 @@ const historyRunCase = Effect.fn("diagnostic.historyRun")(function* (workload: D
               return index;
             }),
         }),
-        IdGenerator.layer,
-        ThreadHistory.layerTransient,
+
+        BenchmarkHistoryLive,
       ),
     ),
   );
@@ -309,7 +322,7 @@ const historyRunCase = Effect.fn("diagnostic.historyRun")(function* (workload: D
     "History Run work/finalizers mismatch",
   );
   yield* check(
-    enabled
+    enabled || BenchmarkRetainsHistory
       ? snapshot.nextSequence > prefix.content.length
       : snapshot.nextSequence === prefix.content.length,
     "History hook retention mismatch",
@@ -482,8 +495,8 @@ const memoryRunCase = Effect.fn("diagnostic.memoryRun")(function* (workload: Dia
       Layer.mergeAll(
         model,
         toolkit.toLayer({ diagnostic_work: ({ index }) => Effect.succeed(index) }),
-        IdGenerator.layer,
-        ThreadHistory.layerTransient,
+
+        BenchmarkHistoryLive,
       ),
     ),
   );
@@ -853,11 +866,7 @@ const mcpCase = Effect.fn("diagnostic.mcp")(function* (workload: DiagnosticCase)
             metrics.push({ name: "foregroundRun", value: yield* elapsed(runStart) });
             yield* check(result.output.answer === "done", "MCP Run output mismatch");
             yield* (yield* ScriptedModel).assertExhausted;
-          }).pipe(
-            Effect.provide(
-              Layer.mergeAll(handlers, model, IdGenerator.layer, ThreadHistory.layerTransient),
-            ),
-          );
+          }).pipe(Effect.provide(Layer.mergeAll(handlers, model, BenchmarkHistoryLive)));
         }
         closeStart = yield* Clock.monotonicTimeNanos;
       }),
@@ -1213,11 +1222,7 @@ const rememberingCase = Effect.fn("diagnostic.remembering")(function* (workload:
       return output;
     }),
   ).pipe(
-    Effect.provide(
-      Layer.mergeAll(handlers, model).pipe(
-        Layer.provideMerge(Layer.merge(IdGenerator.layer, ThreadHistory.layerTransient)),
-      ),
-    ),
+    Effect.provide(Layer.mergeAll(handlers, model).pipe(Layer.provideMerge(BenchmarkHistoryLive))),
   );
 
   foregroundMs = yield* elapsed(foregroundStart);
@@ -1480,7 +1485,7 @@ const subagentCase = Effect.fn("diagnostic.subagent")(function* (workload: Diagn
   const tools = enabled ? Toolkit.make(delegation.tool) : localToolkit;
 
   const handlers = enabled
-    ? Subagent.SubagentRuntime.layer(delegation, Agent.withModel(child, childModel), {
+    ? subagentLayer(delegation, Agent.withModel(child, childModel), {
         mapChildFailure: (failure) =>
           BenchmarkError.make({ message: `Diagnostic child failed: ${failure._tag}` }),
       })
@@ -1572,11 +1577,7 @@ const subagentCase = Effect.fn("diagnostic.subagent")(function* (workload: Diagn
       return output;
     }),
   ).pipe(
-    Effect.provide(
-      Layer.mergeAll(handlers, model).pipe(
-        Layer.provideMerge(Layer.merge(IdGenerator.layer, ThreadHistory.layerTransient)),
-      ),
-    ),
+    Effect.provide(Layer.mergeAll(handlers, model).pipe(Layer.provideMerge(BenchmarkHistoryLive))),
     Effect.withTracer(tracer),
     // Flush bounded trace scalars even when the Run fails or is interrupted.
     Effect.ensuring(
@@ -1668,7 +1669,7 @@ export const runCapabilityCase = Effect.fn("diagnostic.runCapabilityCase")(
 
         return yield* memoryRunCase(workload);
       }),
-    ).pipe(Effect.provide(EphemeralThreads.EphemeralThreadsLive));
+    ).pipe(Effect.provide(Thread.layerMemory));
 
     return result;
   },

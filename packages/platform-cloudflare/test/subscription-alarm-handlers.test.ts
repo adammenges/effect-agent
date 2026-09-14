@@ -1,10 +1,10 @@
-import type { SubscriptionAlarmProtocolError } from "@effect-agent/platform-cloudflare/CloudflareSubscriptions";
+import type { SubscriptionAlarmProtocolError } from "@effect-agent/platform-cloudflare/cloudflare-subscriptions";
 import {
   makeSubscriptionPartitionAlarmHandler,
   SubscriptionAlarmExtensionError,
-} from "@effect-agent/platform-cloudflare/CloudflareSubscriptions";
-import { SubscriptionDriver } from "@effect-agent/thread/Subscriptions";
+} from "@effect-agent/platform-cloudflare/cloudflare-subscriptions";
 import { Context, DateTime, Deferred, Effect, Exit, Fiber, Schema, SchemaGetter } from "effect";
+import { SubscriptionDriver } from "effect-agent/subscriptions";
 import { DurableObjectAlarm } from "effect-cf";
 import { TestClock } from "effect/testing";
 import { expect, expectTypeOf, it } from "vite-plus/test";

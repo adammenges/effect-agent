@@ -1,20 +1,20 @@
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import { NodeDurableHost } from "@effect-agent/platform-node/NodeDurableHost";
-import { ScriptedModel, type ScriptedStreamPart } from "@effect-agent/testing/ScriptedModel";
-import { type AgentAttemptContext } from "@effect-agent/thread/AgentRegistration";
-import { digestDefinitions } from "@effect-agent/thread/Digest";
-import { type Receipt } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigestInput } from "@effect-agent/thread/Records";
+import { NodeDurableHost } from "@effect-agent/platform-node/node-durable-host";
+import { ScriptedModel, type ScriptedStreamPart } from "@effect-agent/testing/scripted-model";
+import { NodeCrypto } from "@effect/platform-node";
+import { Clock, Deferred, Effect, Fiber, FileSystem, Layer, Path, Schema } from "effect";
+import { Agent } from "effect-agent";
+import { type AgentAttemptContext } from "effect-agent/agent-registration";
+import { digestDefinitions } from "effect-agent/digest";
+import { type Receipt } from "effect-agent/durable-agent-runtime";
+import { ThreadId } from "effect-agent/identifiers";
+import { DefinitionDigestInput } from "effect-agent/records";
 import {
   IdempotencyKey,
   Principal,
   RecoverySnapshotRequest,
   SubmissionLedger,
-} from "@effect-agent/thread/SubmissionLedger";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { NodeCrypto } from "@effect/platform-node";
-import { Clock, Deferred, Effect, Fiber, FileSystem, Layer, Path, Schema } from "effect";
-import { Agent } from "effect-agent";
+} from "effect-agent/submission-ledger";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
 import { AiError, Model, Tool, Toolkit } from "effect/unstable/ai";
 
 import { BenchmarkError, check } from "./contracts.js";

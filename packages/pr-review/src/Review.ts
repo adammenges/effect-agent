@@ -1,21 +1,20 @@
 import { Effect, Layer, Ref, Result, Schema, Stream } from "effect";
-import * as Agent from "effect-agent/Agent";
-import { AgentPolicy, CompactionPolicy } from "effect-agent/AgentPolicy";
-import * as AgentRuntime from "effect-agent/AgentRuntime";
-import { makeUsageBudget, UsageBudgetLimits } from "effect-agent/Budget";
-import { ContextCompactor, type ContextCompaction } from "effect-agent/ContextCompactor";
-import { NewContext } from "effect-agent/ContextTools";
-import { IdGenerator } from "effect-agent/IdGenerator";
-import { toRunBudgetHook } from "effect-agent/RunHooks";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy, CompactionPolicy } from "effect-agent/agent-policy";
+import * as AgentRuntime from "effect-agent/agent-runtime";
+import { makeUsageBudget, UsageBudgetLimits } from "effect-agent/budget";
+import { ContextCompactor, type ContextCompaction } from "effect-agent/context-compactor";
+import { NewContext } from "effect-agent/context-tools";
+import { toRunBudgetHook } from "effect-agent/run-hooks";
 import {
   RunContextPreparationPassthrough,
   type RunCostEstimator,
   type RunUsageDelta,
-} from "effect-agent/RunOptions";
-import * as Subagent from "effect-agent/Subagent";
-import { SubagentPolicy, SubagentRuntime } from "effect-agent/Subagent";
-import { SubagentReservationsMemoryLive } from "effect-agent/SubagentReservations";
-import { ThreadHistory } from "effect-agent/ThreadHistory";
+} from "effect-agent/run-options";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentPolicy } from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { ThreadHistory } from "effect-agent/thread-history";
 import { type LanguageModel, type Model, Tool, Toolkit } from "effect/unstable/ai";
 
 import { reviewToolkit, reviewToolkitLayer } from "./internal/repository.ts";
@@ -840,25 +839,21 @@ export const makeReviewer = <Provider, ModelProvides, ModelRequires>(
         }),
       });
 
-      const researchLayer = SubagentRuntime.layer(
-        delegation,
-        options.research?.model ?? options.model,
-        {
-          child: {
-            ...runOptions,
-            // Child usage contributes to totals without acknowledging parent diff pages.
-            budget: {
-              ...accounting,
-              consume: (delta) =>
-                accounting.consume(delta).pipe(
-                  Effect.andThen(Ref.update(modelCalls, (count) => count + delta.modelCalls)),
-                  // This accounting ledger has no limits; native usage is already validated.
-                  Effect.orDie,
-                ),
-            },
+      const researchLayer = Subagent.layer(delegation, options.research?.model ?? options.model, {
+        child: {
+          ...runOptions,
+          // Child usage contributes to totals without acknowledging parent diff pages.
+          budget: {
+            ...accounting,
+            consume: (delta) =>
+              accounting.consume(delta).pipe(
+                Effect.andThen(Ref.update(modelCalls, (count) => count + delta.modelCalls)),
+                // This accounting ledger has no limits; native usage is already validated.
+                Effect.orDie,
+              ),
           },
         },
-      ).pipe(
+      }).pipe(
         Layer.provide([
           recordingLayer,
           researchCompletion.toLayer({ finish_research: () => Effect.succeed(null) }),
@@ -1045,8 +1040,7 @@ export const makeReviewer = <Provider, ModelProvides, ModelRequires>(
       });
     },
     Effect.provide([
-      IdGenerator.layer,
-      ThreadHistory.layerTransient,
+      ThreadHistory.layer,
       RunContextPreparationPassthrough,
       reviewToolkitLayer,
       options.compaction === "prune" ? ContextCompactor.layer : ContextCompactor.layerRollover,

@@ -1,11 +1,11 @@
-import { type ThreadId } from "@effect-agent/core/Identifiers";
-import { type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import { PreparedInputAdmission } from "@effect-agent/thread/PreparedInputAdmission";
-import { ThreadProjectionMaintenance } from "@effect-agent/thread/ThreadProjectionMaintenance";
-import { ThreadStore } from "@effect-agent/thread/ThreadStore";
 import { SqliteClient } from "@effect/sql-sqlite-do";
 import { Context, Effect, Layer, ManagedRuntime } from "effect";
+import { type ResolvedBinding } from "effect-agent/agent-registration";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { type ThreadId } from "effect-agent/identifiers";
+import { PreparedInputAdmission } from "effect-agent/prepared-input-admission";
+import { ThreadProjectionMaintenance } from "effect-agent/thread-projection-maintenance";
+import { ThreadStore } from "effect-agent/thread-store";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 
 import { ThreadMutationGate } from "../src/Alarm.ts";

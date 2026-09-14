@@ -1,4 +1,5 @@
-import { ThreadId } from "@effect-agent/core/Identifiers";
+import { Effect, Layer, Ref, Schema, Semaphore } from "effect";
+import { ThreadId } from "effect-agent/identifiers";
 import {
   applyMessageDeliveryChange,
   defaultMessageDeliveryStoreLimits,
@@ -17,9 +18,8 @@ import {
   messageDeliveryCapacity,
   sameMessageDeliveryIdentity,
   validateMessageDelivery,
-} from "@effect-agent/thread/MessageDelivery";
-import { ScheduleInstant } from "@effect-agent/thread/Schedule";
-import { Effect, Layer, Ref, Schema, Semaphore } from "effect";
+} from "effect-agent/message-delivery";
+import { ScheduleInstant } from "effect-agent/schedule";
 
 const codec = Schema.fromJsonString(MessageDeliveryRecord);
 

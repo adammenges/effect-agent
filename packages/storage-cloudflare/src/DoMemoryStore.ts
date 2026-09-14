@@ -1,10 +1,7 @@
-import { MemoryStorageError, MemoryMutationFailpoint } from "@effect-agent/core/MemoryStore";
-import {
-  memoryStoreLayerWithFailpoints,
-  SqlMemoryLimits,
-} from "@effect-agent/thread/SqlMemoryStore";
 import { SqliteClient } from "@effect/sql-sqlite-do";
 import { Effect, Layer, Schema } from "effect";
+import { MemoryStorageError, MemoryMutationFailpoint } from "effect-agent/memory-store";
+import { memoryStoreLayerWithFailpoints, SqlMemoryLimits } from "effect-agent/sql-memory-store";
 
 export class DoMemoryStorageLimits extends Schema.Class<DoMemoryStorageLimits>(
   "@effect-agent/storage-cloudflare/DoMemoryStorageLimits",

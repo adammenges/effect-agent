@@ -1,39 +1,19 @@
-import { type DoStorageConfig } from "@effect-agent/storage-cloudflare/DoStorageConfig";
+import { type DoStorageConfig } from "@effect-agent/storage-cloudflare/do-storage-config";
 import {
   DoStorageCompatibilityError,
   DoStorageError,
   DoStorageFailpointError,
   DoValueBoundExceeded,
-} from "@effect-agent/storage-cloudflare/DoStorageError";
-import { DoStorageFailpoint } from "@effect-agent/storage-cloudflare/DoStorageFailpoint";
-import { CurrentDoStorageVersion } from "@effect-agent/storage-cloudflare/DoStorageVersion";
-import { ledgerLayer } from "@effect-agent/storage-cloudflare/DoSubmissionLedger";
+} from "@effect-agent/storage-cloudflare/do-storage-error";
+import { DoStorageFailpoint } from "@effect-agent/storage-cloudflare/do-storage-failpoint";
+import { CurrentDoStorageVersion } from "@effect-agent/storage-cloudflare/do-storage-version";
+import { ledgerLayer } from "@effect-agent/storage-cloudflare/do-submission-ledger";
 import {
   threadStoreLayer,
   layer,
   storageConfigLayer,
   type DoStorageInitializationError,
-} from "@effect-agent/storage-cloudflare/DoThreadStore";
-import { EMPTY_TAIL_DIGEST } from "@effect-agent/thread/Digest";
-import { CanonicalBatch, CanonicalRecord, UserInputRecorded } from "@effect-agent/thread/Records";
-import {
-  threadStoreConformanceCases,
-  threadCheckpointConformanceCases,
-} from "@effect-agent/thread/testing/ThreadStoreConformance";
-import {
-  ThreadCheckpoint,
-  ThreadTailRequest,
-  ThreadExportRequest,
-  ThreadMaterialization,
-  ThreadObservation,
-  ThreadRead,
-  ThreadStore,
-  ThreadStoreError,
-  FencedAppendRequest,
-  LoadCheckpointRequest,
-  SaveCheckpointRequest,
-  SaveRecoveryCheckpointRequest,
-} from "@effect-agent/thread/ThreadStore";
+} from "@effect-agent/storage-cloudflare/do-thread-store";
 import { BrowserCrypto } from "@effect/platform-browser";
 import { SqliteClient } from "@effect/sql-sqlite-do";
 import type { Crypto } from "effect";
@@ -49,6 +29,26 @@ import {
   Stream,
   Tracer,
 } from "effect";
+import { EMPTY_TAIL_DIGEST } from "effect-agent/digest";
+import { CanonicalBatch, CanonicalRecord, UserInputRecorded } from "effect-agent/records";
+import {
+  threadStoreConformanceCases,
+  threadCheckpointConformanceCases,
+} from "effect-agent/testing/thread-store-conformance";
+import {
+  ThreadCheckpoint,
+  ThreadTailRequest,
+  ThreadExportRequest,
+  ThreadMaterialization,
+  ThreadObservation,
+  ThreadRead,
+  ThreadStore,
+  ThreadStoreError,
+  FencedAppendRequest,
+  LoadCheckpointRequest,
+  SaveCheckpointRequest,
+  SaveRecoveryCheckpointRequest,
+} from "effect-agent/thread-store";
 import { TestClock } from "effect/testing";
 import * as SqlClientService from "effect/unstable/sql/SqlClient";
 import { describe, expect, it } from "vite-plus/test";
@@ -821,4 +821,4 @@ describe("DoThreadStore", () => {
       ),
     ));
 });
-import { SubmissionId } from "@effect-agent/core/Identifiers";
+import { SubmissionId } from "effect-agent/identifiers";

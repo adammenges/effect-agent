@@ -1,16 +1,16 @@
-import { ThreadId } from "@effect-agent/core/Identifiers";
 import {
   DurableObjectContext,
   ThreadObjectIdentity,
   ThreadObjectNamespace,
-} from "@effect-agent/platform-cloudflare/CloudflareBindings";
-import { CloudflareThreadClient } from "@effect-agent/platform-cloudflare/CloudflareThreadClient";
-import * as ThreadObject from "@effect-agent/platform-cloudflare/ThreadObject";
-import { digestDefinitions } from "@effect-agent/thread/Digest";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
+} from "@effect-agent/platform-cloudflare/cloudflare-bindings";
+import { CloudflareThreadClient } from "@effect-agent/platform-cloudflare/cloudflare-thread-client";
+import * as ThreadObject from "@effect-agent/platform-cloudflare/thread-object";
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai";
 import { BrowserCrypto } from "@effect/platform-browser";
 import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
+import { digestDefinitions } from "effect-agent/digest";
+import { ThreadId } from "effect-agent/identifiers";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
 import { DurableObject, WorkerEnvironment } from "effect-cf";
 import { FetchHttpClient } from "effect/unstable/http";
 

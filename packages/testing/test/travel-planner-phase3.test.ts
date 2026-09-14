@@ -1,5 +1,5 @@
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { layer as sqliteStorageLayer } from "@effect-agent/storage-sqlite/SqliteThreadStore";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
+import { layer as sqliteStorageLayer } from "@effect-agent/storage-sqlite/sqlite-thread-store";
 import {
   expectedTravelPlan,
   makePhase3TravelPlannerCheckpoint,
@@ -7,14 +7,17 @@ import {
   phase3TravelPlannerThreadId,
   phase3TravelPlannerEncodedFixture,
   travelPlanFromProjection,
-} from "@effect-agent/testing/TravelPlanner";
-import { EMPTY_TAIL_DIGEST } from "@effect-agent/thread/Digest";
-import { CanonicalBatch, CanonicalSequence, ProducerEpoch } from "@effect-agent/thread/Records";
+} from "@effect-agent/testing/travel-planner";
+import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, FileSystem, Layer, Option, Schema, Stream } from "effect";
+import { EMPTY_TAIL_DIGEST } from "effect-agent/digest";
+import { CanonicalBatch, CanonicalSequence, ProducerEpoch } from "effect-agent/records";
 import {
   ThreadProjection,
   replayThread,
   replayThreadFromCheckpoint,
-} from "@effect-agent/thread/ThreadProjection";
+} from "effect-agent/thread-projection";
 import {
   ThreadExport,
   ThreadExportRequest,
@@ -25,10 +28,7 @@ import {
   FencedAppendRequest,
   LoadCheckpointRequest,
   SaveCheckpointRequest,
-} from "@effect-agent/thread/ThreadStore";
-import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, FileSystem, Layer, Option, Schema, Stream } from "effect";
+} from "effect-agent/thread-store";
 
 const producerEpoch = Schema.decodeSync(ProducerEpoch)(1);
 const initialSequence = Schema.decodeSync(CanonicalSequence)(0);

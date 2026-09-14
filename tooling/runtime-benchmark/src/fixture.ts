@@ -1,15 +1,31 @@
-import { AgentId, RunId, ThreadId } from "@effect-agent/core/Identifiers";
-import { ContextCompactor } from "@effect-agent/engine/ContextCompactor";
-import { RunContextPreparation } from "@effect-agent/engine/RunOptions";
-import { NodeDurableAgentRuntime } from "@effect-agent/platform-node/NodeDurableAgentRuntime";
+import { NodeDurableAgentRuntime } from "@effect-agent/platform-node/node-durable-agent-runtime";
 import {
   ScriptedModel,
   type ScriptedTurnInput,
   type ScriptedStreamPart,
-} from "@effect-agent/testing/ScriptedModel";
-import { digestJson } from "@effect-agent/thread/Digest";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpointError } from "@effect-agent/thread/DurableFailpoint";
+} from "@effect-agent/testing/scripted-model";
+import {
+  Cause,
+  Clock,
+  Context,
+  Crypto,
+  DateTime,
+  type Duration,
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  Option,
+  References,
+  Schema,
+  Stream,
+} from "effect";
+import { Agent, AgentRuntime } from "effect-agent";
+import { ContextCompactor } from "effect-agent/context-compactor";
+import { digestJson } from "effect-agent/digest";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpointError } from "effect-agent/durable-failpoint";
+import { AgentId, RunId, ThreadId } from "effect-agent/identifiers";
 import {
   BatchId,
   CanonicalBatch,
@@ -28,8 +44,9 @@ import {
   SubmissionSettledRecord,
   ThreadCreated,
   UserInputRecorded,
-} from "@effect-agent/thread/Records";
-import { runIdForSubmission } from "@effect-agent/thread/RunJournal";
+} from "effect-agent/records";
+import { runIdForSubmission } from "effect-agent/run-journal";
+import { RunContextPreparation } from "effect-agent/run-options";
 import {
   AdmissionRequest,
   ClaimRequest,
@@ -42,7 +59,7 @@ import {
   SubmissionLedger,
   submissionSettlementId,
   submissionSettlementRecordId,
-} from "@effect-agent/thread/SubmissionLedger";
+} from "effect-agent/submission-ledger";
 import {
   FencedAppendRequest,
   LoadCheckpointRequest,
@@ -50,31 +67,13 @@ import {
   ThreadMaterialization,
   ThreadStore,
   ThreadTailRequest,
-} from "@effect-agent/thread/ThreadStore";
-import {
-  Cause,
-  Clock,
-  Context,
-  Crypto,
-  DateTime,
-  type Duration,
-  Effect,
-  Exit,
-  FileSystem,
-  Layer,
-  Option,
-  References,
-  Schema,
-  Stream,
-} from "effect";
-import { Agent, AgentRuntime } from "effect-agent";
-import { IdGenerator } from "effect-agent/IdGenerator";
-import { ThreadHistory } from "effect-agent/ThreadHistory";
+} from "effect-agent/thread-store";
 import type { LanguageModel } from "effect/unstable/ai";
 import { AiError, Model, Prompt, Tool, Toolkit } from "effect/unstable/ai";
 
 import { BenchmarkError, check, type Case, type Sample, type SamplePhase } from "./contracts.js";
 import { BenchmarkProgress } from "./evidence.js";
+import { BenchmarkHistoryLive } from "./history.js";
 import { SeedInitializer, SeedTemplates, type SeedRequest } from "./seeds.js";
 
 const answerSchema = Schema.Struct({ answer: Schema.String });
@@ -596,9 +595,7 @@ export const runSample = Effect.fn("benchmark.runSample")(function* (
         yield* markFinish;
         yield* inspectScript;
       }).pipe(
-        Effect.provide(
-          Layer.mergeAll(model(turns), handlers, IdGenerator.layer, ThreadHistory.layerTransient),
-        ),
+        Effect.provide(Layer.mergeAll(model(turns), handlers, BenchmarkHistoryLive)),
         Effect.scoped,
       );
       yield* check(calls === workload.rounds + 1, "Unexpected provider call count");

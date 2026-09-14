@@ -1,11 +1,14 @@
-import { AgentId } from "@effect-agent/core/Identifiers";
 import {
   DoScheduleAlarmControl,
   DoScheduleTransaction,
   scheduleStoreLayer,
-} from "@effect-agent/storage-cloudflare/DoScheduleStore";
-import { type DurableSubmitAgent } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigests, PersistedJson } from "@effect-agent/thread/Records";
+} from "@effect-agent/storage-cloudflare/do-schedule-store";
+import { BrowserCrypto } from "@effect/platform-browser";
+import { SqliteClient } from "@effect/sql-sqlite-do";
+import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect";
+import { type DurableSubmitAgent } from "effect-agent/durable-agent-runtime";
+import { AgentId } from "effect-agent/identifiers";
+import { DefinitionDigests, PersistedJson } from "effect-agent/records";
 import {
   ScheduleAuthorizationError,
   type ScheduleAuthorizer,
@@ -25,18 +28,15 @@ import {
   ScheduleTimingRequest,
   ScheduleValidationError,
   defaultSchedulingLimits,
-} from "@effect-agent/thread/Schedule";
-import { scheduleOwnerKey } from "@effect-agent/thread/ScheduleTransition";
+} from "effect-agent/schedule";
+import { scheduleOwnerKey } from "effect-agent/schedule-transition";
 import {
   Scheduling,
   ScheduleDriver,
   type ScheduleManagementFailure,
   ScheduleWakeNoop,
-} from "@effect-agent/thread/Scheduling";
-import { AdmissionFence } from "@effect-agent/thread/SubmissionLedger";
-import { BrowserCrypto } from "@effect/platform-browser";
-import { SqliteClient } from "@effect/sql-sqlite-do";
-import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect";
+} from "effect-agent/scheduling";
+import { AdmissionFence } from "effect-agent/submission-ledger";
 import {
   DurableObject as EffectCfDurableObject,
   DurableObjectAlarm,

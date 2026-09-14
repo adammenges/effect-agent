@@ -1,16 +1,16 @@
-import { type ThreadId } from "@effect-agent/core/Identifiers";
-import * as MemoryNamespace from "@effect-agent/core/MemoryNamespace";
-import type { MemoryKey } from "@effect-agent/core/MemoryStore";
-import { MemoryReader } from "@effect-agent/core/MemoryStore";
-import type { CanonicalRecordEnvelope } from "@effect-agent/thread/Records";
-import { CanonicalSequence } from "@effect-agent/thread/Records";
+import { Effect, Option, Schema, Stream } from "effect";
+import { type ThreadId } from "effect-agent/identifiers";
+import * as MemoryNamespace from "effect-agent/memory-namespace";
+import type { MemoryKey } from "effect-agent/memory-store";
+import { MemoryReader } from "effect-agent/memory-store";
+import type { CanonicalRecordEnvelope } from "effect-agent/records";
+import { CanonicalSequence } from "effect-agent/records";
 import {
   LoadCheckpointRequest,
   ThreadRead,
   ThreadStore,
   ThreadTailRequest,
-} from "@effect-agent/thread/ThreadStore";
-import { Effect, Option, Schema, Stream } from "effect";
+} from "effect-agent/thread-store";
 
 import { EvaluationError, type RecoveryCheckpointEvidence } from "./contracts.ts";
 

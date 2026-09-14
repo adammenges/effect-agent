@@ -10,10 +10,12 @@ before instructions execute and require native model services. Use `runUnknown`,
 or `startUnknown` for external values typed as `unknown`. See
 [Agent definitions](./agents#typed-and-external-inputs).
 
-Every entry point also requires `ThreadHistory`. Use
-`ThreadHistory.layerTransient` when you do not need retained history. Use
-`PersistentHistory.layer` with a store to [retain completed runs](./threads#retain-completed-runs).
-History commits before a successful result or `RunCompleted` event becomes visible.
+Use `Ephemeral.layer` from `effect-agent` for in-memory conversations, including attached
+subagents. Provide it once around the application and reuse a Thread ID for follow-up Runs.
+It retains complete history updates and shares subagent reservation state for that Scope.
+IDs are generated automatically, and context preparation is optional. Use
+`PersistentHistory.layer` with a store to [retain completed runs](./threads#retain-completed-runs),
+or a durable host when execution must recover after process loss.
 
 A valid no-tool answer needs one model call. A designated completion Tool can complete without a
 follow-up model call. Independent application Tools default to four concurrent handlers, behind
@@ -90,7 +92,7 @@ Lower the progress allowance with `bufferLimits` on `run`, `stream`, or `start`.
 cannot raise the engine's ceiling:
 
 ```ts twoslash
-import { type RunBufferLimits } from "@effect-agent/engine/RunOptions";
+import { type RunBufferLimits } from "effect-agent/run-options";
 
 export const progressBufferLimits: RunBufferLimits = {
   maxToolProgressBytes: 1024 * 1024,
@@ -179,8 +181,8 @@ Use `layerWithServices` to supply your own service layers. It requires
 Here is the default authorization policy; replace it with your application's implementation:
 
 ```ts twoslash
-import { RunToolAuthorization } from "@effect-agent/engine/RunOptions";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
+import { RunToolAuthorization } from "effect-agent/run-options";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
 import { Layer } from "effect";
 
 export const RuntimeLive = DurableAgentRuntime.layerWithServices.pipe(
@@ -221,7 +223,7 @@ prepare context
 
 ## Add per-run hooks {#operational-hooks}
 
-`RunOptions` accepts per-run capability hooks. This process-local example uses transient history.
+`RunOptions` accepts per-run capability hooks. This process-local example uses in-memory history.
 `history` provides an initial Prompt, and `onHistory` receives incremental updates.
 
 ```ts
@@ -249,7 +251,7 @@ per-run hooks.
 ## Observe recovered tool failures
 
 A tool may fail and the model may still complete the run. Install `toolFailureObserverLayer` from
-`@effect-agent/engine` to report such failures.
+`effect-agent` to report such failures.
 
 This observer covers failures contained as results, including programmatic broker outcomes. It does
 not duplicate model-declared failures that propagate through the run's Effect error channel, or
@@ -257,7 +259,7 @@ defects and interruptions. Use [`ToolCallFailed.failureHandling` and tool teleme
 to distinguish returned failures from propagated ones, and handle the run's Effect exit separately.
 
 ```ts
-import { toolFailureObserverLayer } from "@effect-agent/engine/RunOptions";
+import { toolFailureObserverLayer } from "effect-agent/run-options";
 import { Effect, ErrorReporter } from "effect";
 
 const failureReporting = toolFailureObserverLayer({

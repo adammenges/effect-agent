@@ -11,22 +11,7 @@
       "path": "./packages/effect-agent"
     },
     {
-      "path": "./packages/core"
-    },
-    {
-      "path": "./packages/engine"
-    },
-    {
-      "path": "./packages/capabilities"
-    },
-    {
-      "path": "./packages/sandbox"
-    },
-    {
       "path": "./packages/sandbox-local"
-    },
-    {
-      "path": "./packages/thread"
     },
     {
       "path": "./packages/storage-memory"

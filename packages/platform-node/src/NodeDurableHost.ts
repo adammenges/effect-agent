@@ -1,16 +1,17 @@
-import { type ThreadId, type SubmissionId } from "@effect-agent/core/Identifiers";
+import { NodeCrypto } from "@effect/platform-node";
+import { type Stream, Context, Effect, Fiber, Layer, Ref, Schema } from "effect";
 import {
   type IntegrityReport,
   type ObligationReport,
   type ObligationThresholds,
   type RecoveryExplanation,
   type RetryCommand,
-} from "@effect-agent/thread/Admin";
+} from "effect-agent/admin";
 import {
   type AgentRegistration,
   type ResolvedBinding,
   type DurableBindingFailure,
-} from "@effect-agent/thread/AgentRegistration";
+} from "effect-agent/agent-registration";
 import {
   DurableAgentRuntime,
   type DurableAbortFailure,
@@ -26,26 +27,22 @@ import {
   type DurableWorkerFailure,
   type Receipt,
   type RecoveryReport,
-} from "@effect-agent/thread/DurableAgentRuntime";
+} from "effect-agent/durable-agent-runtime";
+import { type ThreadId, type SubmissionId } from "effect-agent/identifiers";
 import {
   type MessageDeliveryStore,
   MessageDeliveryDriver,
   type MessageDeliveryError,
-} from "@effect-agent/thread/MessageDelivery";
-import { type OperationDenied } from "@effect-agent/thread/OperationAuthorizer";
-import { PreparedInputAdmission } from "@effect-agent/thread/PreparedInputAdmission";
-import { type CanonicalRecordEnvelope } from "@effect-agent/thread/Records";
+} from "effect-agent/message-delivery";
+import { type OperationDenied } from "effect-agent/operation-authorizer";
+import { PreparedInputAdmission } from "effect-agent/prepared-input-admission";
+import { type CanonicalRecordEnvelope } from "effect-agent/records";
 import {
   type AbortCommand,
   type AbortIntent,
   type Settlement,
-} from "@effect-agent/thread/SubmissionLedger";
-import {
-  type ThreadNotMaterialized,
-  type ThreadStoreError,
-} from "@effect-agent/thread/ThreadStore";
-import { NodeCrypto } from "@effect/platform-node";
-import { type Stream, Context, Effect, Fiber, Layer, Ref, Schema } from "effect";
+} from "effect-agent/submission-ledger";
+import { type ThreadNotMaterialized, type ThreadStoreError } from "effect-agent/thread-store";
 
 import { runNodeMessageDeliveries } from "./internal/message-delivery.ts";
 import { makeNodePreparedInputAdmission, NodeAdmission } from "./internal/prepared-admission.ts";

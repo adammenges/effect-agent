@@ -1,13 +1,13 @@
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import { NodeDurableHost } from "@effect-agent/platform-node/NodeDurableHost";
-import { ScriptedModel } from "@effect-agent/testing/ScriptedModel";
-import { digestDefinitions } from "@effect-agent/thread/Digest";
-import { DefinitionDigestInput } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
+import { NodeDurableHost } from "@effect-agent/platform-node/node-durable-host";
+import { ScriptedModel } from "@effect-agent/testing/scripted-model";
 import { NodeCrypto, NodeServices } from "@effect/platform-node";
 import { Cause, Deferred, Effect, Exit, Fiber, FileSystem, Layer, Path, Schema } from "effect";
 import { Agent } from "effect-agent";
+import { digestDefinitions } from "effect-agent/digest";
+import { ThreadId } from "effect-agent/identifiers";
+import { DefinitionDigestInput } from "effect-agent/records";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
 import { Model, Toolkit } from "effect/unstable/ai";
 import { expect, expectTypeOf, it } from "vite-plus/test";
 

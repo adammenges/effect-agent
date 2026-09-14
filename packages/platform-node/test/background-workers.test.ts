@@ -1,20 +1,4 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import * as Agent from "@effect-agent/core/Agent";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import type { Receipt } from "@effect-agent/core/Receipt";
-import { WorkerError } from "@effect-agent/core/Worker";
-import { SubagentHost } from "@effect-agent/engine/SubagentHost";
-import * as NodeHost from "@effect-agent/platform-node/NodeDurableHost";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  MessageDeliveryFailpoint,
-  MessageDeliveryFailpointError,
-  MessageDeliveryStore,
-} from "@effect-agent/thread/MessageDelivery";
-import { DefinitionDigestInput } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { WorkerConcurrencyResolver, WorkerHostAuthorizer } from "@effect-agent/thread/WorkerHost";
+import * as NodeHost from "@effect-agent/platform-node/node-durable-host";
 import { NodeFileSystem } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
 import {
@@ -33,6 +17,22 @@ import {
   Stream,
   Tracer,
 } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { ThreadId } from "effect-agent/identifiers";
+import {
+  MessageDeliveryFailpoint,
+  MessageDeliveryFailpointError,
+  MessageDeliveryStore,
+} from "effect-agent/message-delivery";
+import type { Receipt } from "effect-agent/receipt";
+import { DefinitionDigestInput } from "effect-agent/records";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentHost } from "effect-agent/subagent-host";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
+import { WorkerError } from "effect-agent/worker";
+import { WorkerConcurrencyResolver, WorkerHostAuthorizer } from "effect-agent/worker-host";
 import { TestClock } from "effect/testing";
 import { LanguageModel, Model, Toolkit, type Response } from "effect/unstable/ai";
 
@@ -117,7 +117,7 @@ const untilSettled = (
     return yield* Effect.die("Worker receipt did not settle");
   });
 
-// Regression: https://github.com/danieljvdm/effect-agent/blob/4c417d98e8cc790c42ab4200a54a0548fe32e6e3/packages/thread/src/internal/worker-host.ts#L1645-L1691
+// Regression: https://github.com/danieljvdm/effect-agent/blob/4c417d98e8cc790c42ab4200a54a0548fe32e6e3/packages/effect-agent/src/durable/internal/worker-host.ts#L1645-L1691
 for (const completion of ["released", "interrupted"] as const) {
   it.effect(
     `reports retained worker delivery while another admission owns its ${completion} claim`,

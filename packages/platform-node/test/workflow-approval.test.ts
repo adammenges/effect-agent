@@ -1,12 +1,12 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ToolCallId } from "@effect-agent/core/Identifiers";
-import { digestDefinitions } from "@effect-agent/thread/Digest";
-import { ApprovalDecisionCommand } from "@effect-agent/thread/SubmissionLedger";
-import { WorkflowAgentHost } from "@effect-agent/workflow/WorkflowAgentHost";
+import { WorkflowAgentHost } from "@effect-agent/workflow/workflow-agent-host";
 import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
 import { Clock, Deferred, Effect, Layer, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { digestDefinitions } from "effect-agent/digest";
+import { ToolCallId } from "effect-agent/identifiers";
+import { ApprovalDecisionCommand } from "effect-agent/submission-ledger";
 import { Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 import {

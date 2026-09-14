@@ -1,15 +1,15 @@
-import { scheduleStoreLayer } from "@effect-agent/storage-sqlite/SqliteScheduleStore";
+import { scheduleStoreLayer } from "@effect-agent/storage-sqlite/sqlite-schedule-store";
 import {
   SqliteStorageConfig,
   SqliteStorageConfigValue,
-} from "@effect-agent/storage-sqlite/SqliteStorageConfig";
-import { SqliteStorageFailpoint } from "@effect-agent/storage-sqlite/SqliteStorageFailpoint";
-import { scheduleStoreConformanceCases } from "@effect-agent/thread/testing/ScheduleStoreConformance";
+} from "@effect-agent/storage-sqlite/sqlite-storage-config";
+import { SqliteStorageFailpoint } from "@effect-agent/storage-sqlite/sqlite-storage-failpoint";
 import { NodeFileSystem } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, it } from "@effect/vitest";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Layer } from "effect";
+import { scheduleStoreConformanceCases } from "effect-agent/testing/schedule-store-conformance";
 
 const testLayer = (filename: string) =>
   scheduleStoreLayer.pipe(

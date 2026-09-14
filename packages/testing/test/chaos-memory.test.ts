@@ -1,5 +1,5 @@
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
 import {
   ChaosPlan,
   ChaosSubmissionSpec,
@@ -7,19 +7,16 @@ import {
   chaosSeedFromEnv,
   generateChaosPlans,
   runChaosPlan,
-} from "@effect-agent/testing/Chaos";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DeploymentId, ProducerId } from "@effect-agent/thread/Records";
-import { LedgerError, SubmissionLedger } from "@effect-agent/thread/SubmissionLedger";
-import { DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
+} from "@effect-agent/testing/chaos";
 import { NodeCrypto } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Duration, Effect, Exit, Layer, Schema, Stream } from "effect";
+import { DurableAgentRuntime, DurableRuntimeConfig } from "effect-agent/durable-agent-runtime";
+import { DeploymentId, ProducerId } from "effect-agent/records";
+import { LedgerError, SubmissionLedger } from "effect-agent/submission-ledger";
+import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 
 /**
  * P7 WP4 memory chaos lane (plan §5): ~200 seeded plans over the in-memory adapter pair,

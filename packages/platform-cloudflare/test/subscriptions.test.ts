@@ -4,11 +4,11 @@ import {
   SubscriptionPartitionNamespace,
   type SubscriptionPartitionIdentity,
   validateCloudflareSubscriptionLimits,
-} from "@effect-agent/platform-cloudflare/CloudflareSubscriptions";
-import { defaultSubscriptionLimits } from "@effect-agent/thread/Subscription";
-import { SubscriptionIntake, Subscriptions } from "@effect-agent/thread/Subscriptions";
+} from "@effect-agent/platform-cloudflare/cloudflare-subscriptions";
 import { env, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { DateTime, Effect, Layer } from "effect";
+import { defaultSubscriptionLimits } from "effect-agent/subscription";
+import { SubscriptionIntake, Subscriptions } from "effect-agent/subscriptions";
 import { DurableObject, DurableObjectAlarm, type DurableObjectState } from "effect-cf";
 import { expect, expectTypeOf, it } from "vite-plus/test";
 

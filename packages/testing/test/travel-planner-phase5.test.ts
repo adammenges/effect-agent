@@ -1,16 +1,9 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { ThreadId, ToolCallId, type SubmissionId } from "@effect-agent/core/Identifiers";
-import {
-  type RunApprovalDecision,
-  type RunApprovalHook,
-  type RunApprovalRequest,
-} from "@effect-agent/engine/RunOptions";
 import {
   NodeDurableAgentRuntime,
   type NodeDurableAgentRuntimeOptions,
-} from "@effect-agent/platform-node/NodeDurableAgentRuntime";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
+} from "@effect-agent/platform-node/node-durable-agent-runtime";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
 import {
   assertSettledBookingsExistAtSupplier,
   bookFlightIdempotencyKey,
@@ -27,35 +20,7 @@ import {
   TravelPlannerPhase5,
   TravelSupplierReconcilerLayer,
   TripRequest,
-} from "@effect-agent/testing/TravelPlanner";
-import {
-  DurableAgentRuntime,
-  DurableApprovalResolver,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  DurableRuntimeFailpointError,
-  type DurableRuntimeFailpointLocation,
-} from "@effect-agent/thread/DurableFailpoint";
-import { PersistedJson, type CanonicalRecordEnvelope } from "@effect-agent/thread/Records";
-import {
-  promptFromCanonicalRecords,
-  runIdForSubmission,
-  toolCallPreparedRecordId,
-  toolStepSettledRecordId,
-} from "@effect-agent/thread/RunJournal";
-import {
-  ApprovalDecisionCommand,
-  IdempotencyKey,
-  ResolutionCompletedWithResult,
-  SubmissionLedger,
-  SubmissionLookupById,
-  UnknownResolutionCommand,
-} from "@effect-agent/thread/SubmissionLedger";
-import { DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
-import { ThreadRead, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
+} from "@effect-agent/testing/travel-planner";
 import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
 import type { PlatformError } from "effect";
@@ -73,6 +38,41 @@ import {
   Schema,
   Stream,
 } from "effect";
+import * as Agent from "effect-agent/agent";
+import {
+  DurableAgentRuntime,
+  DurableApprovalResolver,
+  DurableRuntimeConfig,
+} from "effect-agent/durable-agent-runtime";
+import {
+  DurableRuntimeFailpointError,
+  type DurableRuntimeFailpointLocation,
+} from "effect-agent/durable-failpoint";
+import { ThreadId, ToolCallId, type SubmissionId } from "effect-agent/identifiers";
+import { PersistedJson, type CanonicalRecordEnvelope } from "effect-agent/records";
+import {
+  promptFromCanonicalRecords,
+  runIdForSubmission,
+  toolCallPreparedRecordId,
+  toolStepSettledRecordId,
+} from "effect-agent/run-journal";
+import {
+  type RunApprovalDecision,
+  type RunApprovalHook,
+  type RunApprovalRequest,
+} from "effect-agent/run-options";
+import {
+  ApprovalDecisionCommand,
+  IdempotencyKey,
+  ResolutionCompletedWithResult,
+  SubmissionLedger,
+  SubmissionLookupById,
+  UnknownResolutionCommand,
+} from "effect-agent/submission-ledger";
+import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
+import { ThreadRead, ThreadStore } from "effect-agent/thread-store";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { LanguageModel, Model, type Prompt, type Response } from "effect/unstable/ai";
 
 const decodeThreadId = Schema.decodeSync(ThreadId);

@@ -1,69 +1,25 @@
-import { ThreadId, type SubmissionId } from "@effect-agent/core/Identifiers";
-import {
-  type RunContextPreparation,
-  type RunCostEstimator,
-  type RunToolFailureObserver,
-} from "@effect-agent/engine/RunOptions";
-import {
-  CurrentToolFailureObserver,
-  RunContextPreparationPassthrough,
-  RunToolAuthorization,
-  toolFailureObserverLayer,
-} from "@effect-agent/engine/RunOptions";
-import { doMessageDeliveryStoreLayer } from "@effect-agent/storage-cloudflare/DoMessageDeliveryStore";
+import { doMessageDeliveryStoreLayer } from "@effect-agent/storage-cloudflare/do-message-delivery-store";
 import {
   type DoStorageFailpointHandler,
   type DoStorageFailpoint,
-} from "@effect-agent/storage-cloudflare/DoStorageFailpoint";
-import { submissionLedgerLayer } from "@effect-agent/storage-cloudflare/DoSubmissionLedger";
+} from "@effect-agent/storage-cloudflare/do-storage-failpoint";
+import { submissionLedgerLayer } from "@effect-agent/storage-cloudflare/do-submission-ledger";
 import {
   threadStoreLayer,
   storageConfigLayer,
   storageFailpointLayer,
   type DoStorageInitializationError,
   type DoStorageOptions,
-} from "@effect-agent/storage-cloudflare/DoThreadStore";
-import { type PortRequest, type PortResponse } from "@effect-agent/storage-cloudflare/PortProtocol";
+} from "@effect-agent/storage-cloudflare/do-thread-store";
+import {
+  type PortRequest,
+  type PortResponse,
+} from "@effect-agent/storage-cloudflare/port-protocol";
 import {
   executePortRequest,
   routedThreadStoreLayer,
   routedSubmissionLedgerLayer,
-} from "@effect-agent/storage-cloudflare/PortRouting";
-import {
-  compileRegistrations,
-  type AgentRegistration,
-  type ResolvedBinding,
-} from "@effect-agent/thread/AgentRegistration";
-import { type DigestError } from "@effect-agent/thread/Digest";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  DurableRuntimeFailpoint,
-  type DurableRuntimeFailpointHandler,
-} from "@effect-agent/thread/DurableFailpoint";
-import {
-  type MessageDeliveryStore,
-  MessageDeliveryDriver,
-  type MessageDeliveryError,
-} from "@effect-agent/thread/MessageDelivery";
-import {
-  operationAuthorizerLayer,
-  type OperationAuthorizerService,
-} from "@effect-agent/thread/OperationAuthorizer";
-import { type PreparedInputAdmission } from "@effect-agent/thread/PreparedInputAdmission";
-import { ProducerId } from "@effect-agent/thread/Records";
-import {
-  LedgerError,
-  SubmissionLedger,
-  SubmissionLookupById,
-  type SubmissionSnapshot,
-} from "@effect-agent/thread/SubmissionLedger";
-import { ThreadProjectionMaintenance } from "@effect-agent/thread/ThreadProjectionMaintenance";
-import { ThreadStoreError, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { type WakeScheduler } from "@effect-agent/thread/WakeScheduler";
+} from "@effect-agent/storage-cloudflare/port-routing";
 import { BrowserCrypto } from "@effect/platform-browser";
 import { SqliteClient } from "@effect/sql-sqlite-do";
 import {
@@ -77,6 +33,50 @@ import {
   Semaphore,
   type Option,
 } from "effect";
+import {
+  compileRegistrations,
+  type AgentRegistration,
+  type ResolvedBinding,
+} from "effect-agent/agent-registration";
+import { type DigestError } from "effect-agent/digest";
+import { DurableAgentRuntime, DurableRuntimeConfig } from "effect-agent/durable-agent-runtime";
+import {
+  DurableRuntimeFailpoint,
+  type DurableRuntimeFailpointHandler,
+} from "effect-agent/durable-failpoint";
+import { ThreadId, type SubmissionId } from "effect-agent/identifiers";
+import {
+  type MessageDeliveryStore,
+  MessageDeliveryDriver,
+  type MessageDeliveryError,
+} from "effect-agent/message-delivery";
+import {
+  operationAuthorizerLayer,
+  type OperationAuthorizerService,
+} from "effect-agent/operation-authorizer";
+import { type PreparedInputAdmission } from "effect-agent/prepared-input-admission";
+import { ProducerId } from "effect-agent/records";
+import {
+  type RunContextPreparation,
+  type RunCostEstimator,
+  type RunToolFailureObserver,
+} from "effect-agent/run-options";
+import {
+  CurrentToolFailureObserver,
+  RunContextPreparationPassthrough,
+  RunToolAuthorization,
+  toolFailureObserverLayer,
+} from "effect-agent/run-options";
+import {
+  LedgerError,
+  SubmissionLedger,
+  SubmissionLookupById,
+  type SubmissionSnapshot,
+} from "effect-agent/submission-ledger";
+import { ThreadProjectionMaintenance } from "effect-agent/thread-projection-maintenance";
+import { ThreadStoreError, ThreadStore } from "effect-agent/thread-store";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { type WakeScheduler } from "effect-agent/wake-scheduler";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 
 import {

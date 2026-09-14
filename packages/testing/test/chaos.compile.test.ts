@@ -3,18 +3,18 @@ import {
   ChaosSubmissionSpec,
   runChaosPlan,
   type ChaosConvergenceFailure,
-} from "@effect-agent/testing/Chaos";
+} from "@effect-agent/testing/chaos";
+import type { Crypto, Effect } from "effect";
 import {
   type DurableAgentRuntime,
   type DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { type DurableRuntimeFailpoint } from "@effect-agent/thread/DurableFailpoint";
-import { type SubmissionLedger } from "@effect-agent/thread/SubmissionLedger";
-import { type DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
-import { type ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { type ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { type WakeScheduler } from "@effect-agent/thread/WakeScheduler";
-import type { Crypto, Effect } from "effect";
+} from "effect-agent/durable-agent-runtime";
+import { type DurableRuntimeFailpoint } from "effect-agent/durable-failpoint";
+import { type SubmissionLedger } from "effect-agent/submission-ledger";
+import { type DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
+import { type ThreadStore } from "effect-agent/thread-store";
+import { type ToolReconciler } from "effect-agent/tool-reconciler";
+import { type WakeScheduler } from "effect-agent/wake-scheduler";
 import { describe, expect, it } from "vite-plus/test";
 
 type Equal<Left, Right> =

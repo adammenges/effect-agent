@@ -2,10 +2,13 @@ import {
   DoSubscriptionAlarmControl,
   DoSubscriptionTransaction,
   doSubscriptionStoreLayer,
-} from "@effect-agent/storage-cloudflare/DoSubscriptionStore";
-import { type EventSources } from "@effect-agent/thread/EventSource";
-import { PersistedJson } from "@effect-agent/thread/Records";
-import { Principal } from "@effect-agent/thread/SubmissionLedger";
+} from "@effect-agent/storage-cloudflare/do-subscription-store";
+import { BrowserCrypto } from "@effect/platform-browser";
+import { SqliteClient } from "@effect/sql-sqlite-do";
+import { Cause, Clock, Context, DateTime, Effect, Layer, Schema, type Scope } from "effect";
+import { type EventSources } from "effect-agent/event-source";
+import { PersistedJson } from "effect-agent/records";
+import { Principal } from "effect-agent/submission-ledger";
 import {
   EventAcknowledgement,
   EventSourceVersion,
@@ -22,16 +25,9 @@ import {
   SubscriptionSnapshot,
   SubscriptionSourceError,
   defaultSubscriptionLimits,
-} from "@effect-agent/thread/Subscription";
-import { type SubscriptionInputBindings } from "@effect-agent/thread/SubscriptionInput";
-import {
-  SubscriptionDriver,
-  SubscriptionIntake,
-  Subscriptions,
-} from "@effect-agent/thread/Subscriptions";
-import { BrowserCrypto } from "@effect/platform-browser";
-import { SqliteClient } from "@effect/sql-sqlite-do";
-import { Cause, Clock, Context, DateTime, Effect, Layer, Schema, type Scope } from "effect";
+} from "effect-agent/subscription";
+import { type SubscriptionInputBindings } from "effect-agent/subscription-input";
+import { SubscriptionDriver, SubscriptionIntake, Subscriptions } from "effect-agent/subscriptions";
 import {
   DurableObject as EffectCfDurableObject,
   DurableObjectAlarm,

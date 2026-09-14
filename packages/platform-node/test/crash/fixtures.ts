@@ -1,30 +1,26 @@
 import * as fs from "node:fs";
 
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentPolicy, SubagentRuntime } from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId, RunId, ToolCallId, TurnId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import {
-  DurableStep,
-  DurableStepError,
-  ToolExecutionClass,
-} from "@effect-agent/engine/DurableStep";
-import { RunContextPreparation } from "@effect-agent/engine/RunOptions";
-import { DurableWorkerBinding, type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { Receipt, type DurableSubmitOptions } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigests, Digest } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal, Settlement } from "@effect-agent/thread/SubmissionLedger";
+import { Duration, Effect, Layer, Option, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { DurableWorkerBinding, type ResolvedBinding } from "effect-agent/agent-registration";
+import { Receipt, type DurableSubmitOptions } from "effect-agent/durable-agent-runtime";
+import { DurableStep, DurableStepError, ToolExecutionClass } from "effect-agent/durable-step";
+import { IdGenerator } from "effect-agent/id-generator";
+import { ThreadId, RunId, ToolCallId, TurnId } from "effect-agent/identifiers";
+import { DefinitionDigests, Digest } from "effect-agent/records";
+import { RunContextPreparation } from "effect-agent/run-options";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentPolicy } from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { IdempotencyKey, Principal, Settlement } from "effect-agent/submission-ledger";
 import {
   ReconciliationCompleted,
   ReconciliationNeverStarted,
   ReconciliationSafeToRetry,
   ReconciliationUncertain,
   ToolReconciler,
-} from "@effect-agent/thread/ToolReconciler";
-import { Duration, Effect, Layer, Option, Ref, Schema, Stream } from "effect";
+} from "effect-agent/tool-reconciler";
 import { LanguageModel, Model, Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 /**
@@ -820,7 +816,7 @@ export const makeCrashSubagentBindings = Effect.fn("CrashFixtures.makeCrashSubag
     const childModel = makeCrashChildModel(options.supplierDir, options.childBlock);
     const childBinding = Agent.withModel(researcherDefinition, childModel);
 
-    const delegationLayer = SubagentRuntime.layer(delegation, childBinding, {
+    const delegationLayer = Subagent.layer(delegation, childBinding, {
       mapChildFailure: mapCrashChildFailure,
       durable: { targetDigests: CHILD_DIGEST_STRINGS },
     }).pipe(Layer.provide(delegationSupport));

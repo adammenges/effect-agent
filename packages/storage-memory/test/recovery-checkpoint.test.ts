@@ -1,38 +1,31 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { ThreadId, ToolCallId } from "@effect-agent/core/Identifiers";
-import { ContextCompactor } from "@effect-agent/engine/ContextCompactor";
-import {
-  DurableStep,
-  DurableStepError,
-  ToolExecutionClass,
-} from "@effect-agent/engine/DurableStep";
-import { RunContextPreparation, RunToolAuthorization } from "@effect-agent/engine/RunOptions";
-import { DurableWorkerBinding } from "@effect-agent/thread/AgentRegistration";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpointError } from "@effect-agent/thread/DurableFailpoint";
-import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "@effect-agent/thread/Records";
+import { NodeCrypto } from "@effect/platform-node";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Exit, Layer, Option, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableWorkerBinding } from "effect-agent/agent-registration";
+import { ContextCompactor } from "effect-agent/context-compactor";
+import { DurableAgentRuntime, DurableRuntimeConfig } from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpointError } from "effect-agent/durable-failpoint";
+import { DurableStep, DurableStepError, ToolExecutionClass } from "effect-agent/durable-step";
+import { ThreadId, ToolCallId } from "effect-agent/identifiers";
+import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "effect-agent/records";
+import { RunContextPreparation, RunToolAuthorization } from "effect-agent/run-options";
 import {
   ApprovalDecisionCommand,
   IdempotencyKey,
   Principal,
   RecoverySnapshotRequest,
   SubmissionLedger,
-} from "@effect-agent/thread/SubmissionLedger";
-import { DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
+} from "effect-agent/submission-ledger";
+import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
 import {
   LoadCheckpointRequest,
   ThreadCheckpoint,
   ThreadExportRequest,
   ThreadStore,
-} from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
-import { NodeCrypto } from "@effect/platform-node";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Exit, Layer, Option, Schema, Stream } from "effect";
+} from "effect-agent/thread-store";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { TestClock } from "effect/testing";
 import type { Prompt, Response } from "effect/unstable/ai";
 import { LanguageModel, Model, Tool, Toolkit } from "effect/unstable/ai";

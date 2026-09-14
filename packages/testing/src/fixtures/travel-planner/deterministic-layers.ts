@@ -1,8 +1,8 @@
-import { ThreadId, RunId, TurnId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import { RunContextPreparationPassthrough } from "@effect-agent/engine/RunOptions";
-import { ThreadHistory } from "@effect-agent/engine/ThreadHistory";
 import { Context, Deferred, Effect, Layer, Option, Ref, Schema } from "effect";
+import { IdGenerator } from "effect-agent/id-generator";
+import { ThreadId, RunId, TurnId } from "effect-agent/identifiers";
+import { RunContextPreparationPassthrough } from "effect-agent/run-options";
+import { ThreadHistory } from "effect-agent/thread-history";
 
 import {
   ActivityCatalog,
@@ -464,7 +464,7 @@ export const DeterministicIdGeneratorLayer = Layer.effect(
 
 export const TravelPlannerRuntimeLayer = Layer.mergeAll(
   RunContextPreparationPassthrough,
-  ThreadHistory.layerTransient,
+  ThreadHistory.layer,
   TravelPlannerToolkitLayer,
   FlightCatalogLayer,
   LodgingCatalogLayer,

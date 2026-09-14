@@ -1,20 +1,21 @@
 import * as fs from "node:fs";
 
-import * as Agent from "@effect-agent/core/Agent";
-import { type ThreadId } from "@effect-agent/core/Identifiers";
 import {
   NodeDurableAgentRuntime,
   type NodeDurableAgentRuntimeOptions,
-} from "@effect-agent/platform-node/NodeDurableAgentRuntime";
-import { NodeDurableHost } from "@effect-agent/platform-node/NodeDurableHost";
-import { SqliteStorageFailpointLocation } from "@effect-agent/storage-sqlite/SqliteStorageError";
-import { type SqliteStorageFailpointHandler } from "@effect-agent/storage-sqlite/SqliteStorageFailpoint";
-import { DurableAgentRuntime, type Receipt } from "@effect-agent/thread/DurableAgentRuntime";
+} from "@effect-agent/platform-node/node-durable-agent-runtime";
+import { NodeDurableHost } from "@effect-agent/platform-node/node-durable-host";
+import { SqliteStorageFailpointLocation } from "@effect-agent/storage-sqlite/sqlite-storage-error";
+import { type SqliteStorageFailpointHandler } from "@effect-agent/storage-sqlite/sqlite-storage-failpoint";
+import { Cause, Duration, Effect, Exit, Layer, Option, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableAgentRuntime, type Receipt } from "effect-agent/durable-agent-runtime";
 import {
   DurableRuntimeFailpointLocation,
   type DurableRuntimeFailpointHandler,
-} from "@effect-agent/thread/DurableFailpoint";
-import { childThreadIdFor } from "@effect-agent/thread/RunJournal";
+} from "effect-agent/durable-failpoint";
+import { type ThreadId } from "effect-agent/identifiers";
+import { childThreadIdFor } from "effect-agent/run-journal";
 import {
   AbortCommand,
   ApprovalDecisionCommand,
@@ -24,8 +25,7 @@ import {
   UnknownResolutionCommand,
   type Settlement,
   type SubmissionSnapshot,
-} from "@effect-agent/thread/SubmissionLedger";
-import { Cause, Duration, Effect, Exit, Layer, Option, Schema, Stream } from "effect";
+} from "effect-agent/submission-ledger";
 import type { Response } from "effect/unstable/ai";
 
 import {

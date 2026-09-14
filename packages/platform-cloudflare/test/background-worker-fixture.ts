@@ -1,22 +1,21 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import type { ThreadId, SubmissionId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import { MessagingError } from "@effect-agent/core/Messaging";
-import { SubagentGrant } from "@effect-agent/core/SubagentContract";
-import { WorkerError } from "@effect-agent/core/Worker";
-import { DurableWorkerBinding } from "@effect-agent/thread/AgentRegistration";
-import { PeerAuthorizer, PeerRoutes } from "@effect-agent/thread/MessagingHost";
+import { Duration, Effect, Layer, Option, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { DurableWorkerBinding } from "effect-agent/agent-registration";
+import type { ThreadId, SubmissionId } from "effect-agent/identifiers";
+import { MessagingError } from "effect-agent/messaging";
+import { PeerAuthorizer, PeerRoutes } from "effect-agent/messaging-host";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentGrant } from "effect-agent/subagent-contract";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { WorkerError } from "effect-agent/worker";
 import {
   WorkerBudgetAuthorizer,
   WorkerConcurrencyResolver,
   WorkerHostAuthorizer,
   WorkerHostConfig,
   WorkerPolicyResolver,
-} from "@effect-agent/thread/WorkerHost";
-import { Duration, Effect, Layer, Option, Schema, Stream } from "effect";
+} from "effect-agent/worker-host";
 import { LanguageModel, Model, Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 import { TEST_DIGESTS, TEST_PRINCIPAL, finalParts } from "./fixtures.ts";
@@ -387,10 +386,10 @@ const independentPersonaModel = Model.make(
   ),
 );
 
-const independentScoutHandlers = Subagent.SubagentRuntime.layer(
+const independentScoutHandlers = Subagent.layer(
   independentScoutDeclaration,
   Agent.withModel(independentScout, model),
-).pipe(Layer.provide([SubagentReservationsMemoryLive, IdGenerator.layer]));
+).pipe(Layer.provide([SubagentReservationsMemoryLive]));
 
 export const backgroundWorkerBindings = Effect.all([
   DurableWorkerBinding.make(

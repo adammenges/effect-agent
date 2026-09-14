@@ -1,84 +1,5 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy, CompactionPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId, ReceiptId, SubmissionId, ToolCallId } from "@effect-agent/core/Identifiers";
-import { type IdGenerator } from "@effect-agent/core/IdGenerator";
-import {
-  COMPACTION_SUMMARY_PREFIX,
-  CONTEXT_ROLLOVER_PREFIX,
-  contextWindowId,
-  estimatePromptTokens,
-} from "@effect-agent/engine/Compaction";
-import { ContextCompactor } from "@effect-agent/engine/ContextCompactor";
-import {
-  ContextRolloverRequest,
-  ContextRolloverTool,
-  ContextWindow,
-} from "@effect-agent/engine/ContextWindow";
-import { ToolExecutionClass } from "@effect-agent/engine/DurableStep";
-import { RunContextPreparation, RunToolAuthorization } from "@effect-agent/engine/RunOptions";
-import { ToolBroker } from "@effect-agent/engine/ToolBroker";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { DurableWorkerBinding } from "@effect-agent/thread/AgentRegistration";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-  Receipt,
-  recoveryRepairRecordId,
-  type DurableSubmitOptions,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  DurableRuntimeFailpointError,
-  type DurableRuntimeFailpointLocation,
-} from "@effect-agent/thread/DurableFailpoint";
-import {
-  BatchId,
-  CanonicalRecordEnvelope,
-  CanonicalSequence,
-  DefinitionDigests,
-  DeploymentId,
-  Digest,
-  ModelResponseRecorded,
-  ObservationOffset,
-  PersistedJson,
-  ProducerId,
-  RecordEnvelope,
-  RunCompleted,
-} from "@effect-agent/thread/Records";
-import {
-  modelResponseRecordId,
-  projectRunJournal,
-  promptFromCanonicalRecords,
-  runCompletedRecordId,
-  runIdForSubmission,
-  runStartedRecordId,
-  toolCallSettledRecordId,
-  turnCanonicalBatch,
-  turnIdForRun,
-} from "@effect-agent/thread/RunJournal";
-import {
-  AbortCommand,
-  ApprovalDecisionCommand,
-  IdempotencyKey,
-  Principal,
-  QueueSequence,
-  RecoverySnapshotRequest,
-  ResolutionCompletedWithResult,
-  UnknownResolutionCommand,
-  Settlement,
-  SubmissionLedger,
-  SubmissionLookupById,
-  SubmissionLookupByKey,
-  submissionInputRecordId,
-  submissionSettlementRecordId,
-  type AdmissionConflict,
-  type SettlementConflict,
-} from "@effect-agent/thread/SubmissionLedger";
-import { DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
-import { replayThread } from "@effect-agent/thread/ThreadProjection";
-import { ThreadRead, ThreadStore, type FenceRejected } from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler, makeWakeSubscriptionHub } from "@effect-agent/thread/WakeScheduler";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
 import { NodeCrypto } from "@effect/platform-node";
 import { describe, expect, layer } from "@effect/vitest";
 import {
@@ -96,6 +17,86 @@ import {
   Schema,
   Stream,
 } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy, CompactionPolicy } from "effect-agent/agent-policy";
+import { DurableWorkerBinding } from "effect-agent/agent-registration";
+import {
+  COMPACTION_SUMMARY_PREFIX,
+  CONTEXT_ROLLOVER_PREFIX,
+  contextWindowId,
+  estimatePromptTokens,
+} from "effect-agent/compaction";
+import { ContextCompactor } from "effect-agent/context-compactor";
+import {
+  ContextRolloverRequest,
+  ContextRolloverTool,
+  ContextWindow,
+} from "effect-agent/context-window";
+import {
+  DurableAgentRuntime,
+  DurableRuntimeConfig,
+  Receipt,
+  recoveryRepairRecordId,
+  type DurableSubmitOptions,
+} from "effect-agent/durable-agent-runtime";
+import {
+  DurableRuntimeFailpointError,
+  type DurableRuntimeFailpointLocation,
+} from "effect-agent/durable-failpoint";
+import { ToolExecutionClass } from "effect-agent/durable-step";
+import { ThreadId, ReceiptId, SubmissionId, ToolCallId } from "effect-agent/identifiers";
+import {
+  BatchId,
+  CanonicalRecordEnvelope,
+  CanonicalSequence,
+  DefinitionDigests,
+  DeploymentId,
+  Digest,
+  ModelResponseRecorded,
+  ObservationOffset,
+  PersistedJson,
+  ProducerId,
+  RecordEnvelope,
+  RunCompleted,
+} from "effect-agent/records";
+import {
+  modelResponseRecordId,
+  projectRunJournal,
+  promptFromCanonicalRecords,
+  runCompletedRecordId,
+  runIdForSubmission,
+  runStartedRecordId,
+  toolCallSettledRecordId,
+  turnCanonicalBatch,
+  turnIdForRun,
+} from "effect-agent/run-journal";
+import { RunContextPreparation, RunToolAuthorization } from "effect-agent/run-options";
+import {
+  AbortCommand,
+  ApprovalDecisionCommand,
+  ClaimRequest,
+  DEFAULT_OWNERSHIP_LEASE_DURATION,
+  IdempotencyKey,
+  Principal,
+  QueueSequence,
+  RecoverySnapshotRequest,
+  ResolutionCompletedWithResult,
+  UnknownResolutionCommand,
+  Settlement,
+  SubmissionLedger,
+  SubmissionLookupById,
+  SubmissionLookupByKey,
+  submissionInputRecordId,
+  submissionSettlementRecordId,
+  type AdmissionConflict,
+  type SettlementConflict,
+} from "effect-agent/submission-ledger";
+import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
+import { replayThread } from "effect-agent/thread-projection";
+import { ThreadRead, ThreadStore, type FenceRejected } from "effect-agent/thread-store";
+import { ToolBroker } from "effect-agent/tool-broker";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler, makeWakeSubscriptionHub } from "effect-agent/wake-scheduler";
 import { TestClock } from "effect/testing";
 import {
   AiError,
@@ -3169,46 +3170,80 @@ layer(testLayer)("DUR P4 DurableAgentRuntime", (it) => {
     }),
   );
 
-  it.effect("recovery appends a reserved-but-unappended settlement exactly as reserved", () =>
-    Effect.gen(function* () {
-      const runtime = yield* DurableAgentRuntime;
-      const scripted = yield* makeScriptedModel(() => finalParts('{"answer":"reserved"}'));
-      const agent = Agent.withModel(plannerDefinition, scripted.model);
-      const thread = "thread-recover-reserved";
+  for (const driver of ["recovery", "worker"] as const) {
+    it.effect(`completes the exact reserved settlement through ${driver}`, () =>
+      Effect.gen(function* () {
+        const runtime = yield* DurableAgentRuntime;
+        const ledger = yield* SubmissionLedger;
+        const scripted = yield* makeScriptedModel(() => finalParts('{"answer":"reserved"}'));
+        const agent = Agent.withModel(plannerDefinition, scripted.model);
+        const thread = `thread-recover-reserved-${driver}`;
 
-      const receipt = yield* runtime.submit(
-        agent,
-        { question: "reserve" },
-        submitOptions(thread, "reserved-1"),
-      );
+        const receipt = yield* runtime.submit(
+          agent,
+          { question: "reserve" },
+          submitOptions(thread, "reserved-1"),
+        );
 
-      yield* armFailpoint("terminalize:after-reserve");
-      const killed = yield* Effect.exit(runtime.processThread(agent, decodeThreadId(thread)));
+        yield* armFailpoint("terminalize:after-reserve");
+        const killed = yield* Effect.exit(runtime.processThread(agent, decodeThreadId(thread)));
 
-      expect(failureTag(killed)).toBe("DurableRuntimeFailpointError");
-      yield* clearFailpoint;
+        expect(failureTag(killed)).toBe("DurableRuntimeFailpointError");
+        yield* clearFailpoint;
 
-      const reports = yield* runtime.runRecovery;
-      const report = reports.find((entry) => entry.submissionId === receipt.submissionId);
+        const snapshot = yield* ledger.loadRecoverySnapshot(
+          RecoverySnapshotRequest.make({ submissionId: receipt.submissionId }),
+        );
 
-      expect(report?.decision._tag).toBe("AppendReservedSettlement");
-      expect(report?.disposition).toBe("repaired");
+        expect(snapshot.reservation?.finalized).toBe(false);
+        if (driver === "worker") {
+          // Recovery observes a still-owned reservation. Its lease expires before the
+          // following worker claim, as it can between the two phases of an alarm pass.
+          const claimed = yield* ledger.claim(
+            ClaimRequest.make({
+              threadId: decodeThreadId(thread),
+              producerId: ProducerId.make("owner-before-expiry"),
+            }),
+          );
 
-      const settlement = yield* runtime.awaitSettlement(receipt);
+          expect(Option.isSome(claimed)).toBe(true);
+        }
 
-      expect(settlement.outcome).toBe("completed");
-      const records = yield* readLog(thread);
+        const reports = yield* runtime.runRecovery;
+        const report = reports.find((entry) => entry.submissionId === receipt.submissionId);
 
-      const settledRecords = records.filter(
-        (envelope) => envelope.record.payload._tag === "SubmissionSettled",
-      );
+        expect(report?.decision._tag).toBe("AppendReservedSettlement");
+        expect(report?.disposition).toBe(driver === "recovery" ? "repaired" : "deferred");
 
-      expect(settledRecords).toHaveLength(1);
-      expect(records.map((envelope) => envelope.record.recordId)).toContain(
-        recoveryRepairRecordId(receipt.submissionId, "AppendReservedSettlement"),
-      );
-    }),
-  );
+        if (driver === "worker") {
+          yield* TestClock.adjust(DEFAULT_OWNERSHIP_LEASE_DURATION);
+          const settlements = yield* runtime.processThread(agent, decodeThreadId(thread));
+
+          expect(settlements).toHaveLength(1);
+        }
+
+        const settlement = yield* runtime.awaitSettlement(receipt);
+
+        expect(settlement.outcome).toBe("completed");
+        expect(yield* lookupState(receipt.submissionId)).toBe("settled");
+        expect(scripted.prompts).toHaveLength(1);
+        const records = yield* readLog(thread);
+
+        const settledRecords = records.filter(
+          (envelope) => envelope.record.payload._tag === "SubmissionSettled",
+        );
+
+        expect(settledRecords.map((envelope) => envelope.record)).toEqual([
+          snapshot.reservation?.record,
+        ]);
+        if (driver === "recovery") {
+          expect(records.map((envelope) => envelope.record.recordId)).toContain(
+            recoveryRepairRecordId(receipt.submissionId, "AppendReservedSettlement"),
+          );
+        }
+      }),
+    );
+  }
 
   it.effect("recovery finalizes the ledger from history without rewriting the record", () =>
     Effect.gen(function* () {
@@ -3370,16 +3405,13 @@ layer(testLayer)("DUR P4 DurableAgentRuntime", (it) => {
       );
 
       type WorkerError = Effect.Error<typeof workerProgram>;
-      type WorkerServices = Effect.Services<typeof workerProgram>;
       const workerHasFence: FenceRejected extends WorkerError ? true : false = true;
-      const workerProvidesIdGenerator: IdGenerator extends WorkerServices ? true : false = false;
 
       expect(submitHasAdmissionConflict).toBe(true);
       expect(submitHasFailpoint).toBe(true);
       expect(awaitHasConflict).toBe(true);
       expect(awaitReturnsSettlement).toBe(true);
       expect(workerHasFence).toBe(true);
-      expect(workerProvidesIdGenerator).toBe(false);
     }),
   );
 

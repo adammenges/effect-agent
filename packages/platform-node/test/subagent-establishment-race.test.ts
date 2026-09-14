@@ -1,14 +1,4 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { ThreadId, ToolCallId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import { NodeDurableAgentRuntime } from "@effect-agent/platform-node/NodeDurableAgentRuntime";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigestInput } from "@effect-agent/thread/Records";
-import { childThreadIdFor } from "@effect-agent/thread/RunJournal";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
+import { NodeDurableAgentRuntime } from "@effect-agent/platform-node/node-durable-agent-runtime";
 import { NodeFileSystem } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
 import {
@@ -23,6 +13,15 @@ import {
   Schema,
   Stream,
 } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { ThreadId, ToolCallId } from "effect-agent/identifiers";
+import { DefinitionDigestInput } from "effect-agent/records";
+import { childThreadIdFor } from "effect-agent/run-journal";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
 import { LanguageModel, Model, Toolkit, type Response } from "effect/unstable/ai";
 
 const callId = Schema.decodeSync(ToolCallId)("scout-call");
@@ -121,8 +120,8 @@ for (const boundary of ["ThreadCreated", "SubagentLineageRecorded"] as const) {
             model("parent", parentCalls, true),
           );
 
-          const handlers = Subagent.SubagentRuntime.layer(declaration, child).pipe(
-            Layer.provide([SubagentReservationsMemoryLive, IdGenerator.layer]),
+          const handlers = Subagent.layer(declaration, child).pipe(
+            Layer.provide([SubagentReservationsMemoryLive]),
           );
 
           const context = yield* Layer.build(

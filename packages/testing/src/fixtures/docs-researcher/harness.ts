@@ -1,18 +1,14 @@
-import { connectMcp, type McpDiscovery } from "@effect-agent/capabilities/Mcp";
-import {
-  Redactor,
-  type RedactedPreview,
-  type RedactionError,
-} from "@effect-agent/capabilities/Redaction";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { type ThreadId } from "@effect-agent/core/Identifiers";
-import { DurableWorkerBinding, type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { type DurableSubmitOptions } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "@effect-agent/thread/Records";
-import { Principal, type IdempotencyKey } from "@effect-agent/thread/SubmissionLedger";
 import type { Crypto } from "effect";
 import { Effect, Layer, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableWorkerBinding, type ResolvedBinding } from "effect-agent/agent-registration";
+import { type DurableSubmitOptions } from "effect-agent/durable-agent-runtime";
+import { type ThreadId } from "effect-agent/identifiers";
+import { connectMcp, type McpDiscovery } from "effect-agent/mcp";
+import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "effect-agent/records";
+import { Redactor, type RedactedPreview, type RedactionError } from "effect-agent/redaction";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { Principal, type IdempotencyKey } from "effect-agent/submission-ledger";
 import { LanguageModel, Model, type Response } from "effect/unstable/ai";
 
 import { DeterministicIdGeneratorLayer } from "../travel-planner/deterministic-layers.ts";

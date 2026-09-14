@@ -1,42 +1,6 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { AgentId, ThreadId } from "@effect-agent/core/Identifiers";
-import { NodeDurableHost } from "@effect-agent/platform-node/NodeDurableHost";
-import { NodeSubscriptions } from "@effect-agent/platform-node/NodeSubscriptions";
-import { subscriptionStoreLayer } from "@effect-agent/storage-sqlite/SqliteSubscriptionStore";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  DurableRuntimeFailpointError,
-  type DurableRuntimeFailpointHandler,
-} from "@effect-agent/thread/DurableFailpoint";
-import { EventSources } from "@effect-agent/thread/EventSource";
-import {
-  GitHubRepository,
-  GitHubWorkflowRunSourceVersion,
-  GitHubWorkflowRuns,
-  GitHubWorkflowRunCompletion,
-  GitHubWorkflowRunWatch,
-  makeGitHubWorkflowRunSource,
-} from "@effect-agent/thread/GitHubWorkflowSource";
-import { DefinitionDigests, Digest } from "@effect-agent/thread/Records";
-import {
-  IdempotencyKey,
-  Principal,
-  SubmissionLedger,
-  SubmissionLookupByKey,
-} from "@effect-agent/thread/SubmissionLedger";
-import {
-  SourcePartition,
-  SubscriptionAuthorizer,
-  type SubscriptionDeliverySnapshot,
-  SubscriptionStore,
-  defaultSubscriptionLimits,
-} from "@effect-agent/thread/Subscription";
-import {
-  SubscriptionInputBindings,
-  makeSubscriptionInputBinding,
-} from "@effect-agent/thread/SubscriptionInput";
-import { Subscriptions } from "@effect-agent/thread/Subscriptions";
+import { NodeDurableHost } from "@effect-agent/platform-node/node-durable-host";
+import { NodeSubscriptions } from "@effect-agent/platform-node/node-subscriptions";
+import { subscriptionStoreLayer } from "@effect-agent/storage-sqlite/sqlite-subscription-store";
 import { NodeFileSystem } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
 import type { PlatformError } from "effect";
@@ -53,6 +17,42 @@ import {
   Scope,
   Stream,
 } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import {
+  DurableRuntimeFailpointError,
+  type DurableRuntimeFailpointHandler,
+} from "effect-agent/durable-failpoint";
+import { EventSources } from "effect-agent/event-source";
+import {
+  GitHubRepository,
+  GitHubWorkflowRunSourceVersion,
+  GitHubWorkflowRuns,
+  GitHubWorkflowRunCompletion,
+  GitHubWorkflowRunWatch,
+  makeGitHubWorkflowRunSource,
+} from "effect-agent/git-hub-workflow-source";
+import { AgentId, ThreadId } from "effect-agent/identifiers";
+import { DefinitionDigests, Digest } from "effect-agent/records";
+import {
+  IdempotencyKey,
+  Principal,
+  SubmissionLedger,
+  SubmissionLookupByKey,
+} from "effect-agent/submission-ledger";
+import {
+  SourcePartition,
+  SubscriptionAuthorizer,
+  type SubscriptionDeliverySnapshot,
+  SubscriptionStore,
+  defaultSubscriptionLimits,
+} from "effect-agent/subscription";
+import {
+  SubscriptionInputBindings,
+  makeSubscriptionInputBinding,
+} from "effect-agent/subscription-input";
+import { Subscriptions } from "effect-agent/subscriptions";
 import { TestClock } from "effect/testing";
 import { LanguageModel, Model, Toolkit, type Response } from "effect/unstable/ai";
 

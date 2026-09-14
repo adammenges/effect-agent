@@ -1,4 +1,18 @@
-import { digestCanonicalBatch, EMPTY_TAIL_DIGEST } from "@effect-agent/thread/Digest";
+import { BrowserCrypto } from "@effect/platform-browser";
+import { SqliteClient } from "@effect/sql-sqlite-do";
+import {
+  Clock,
+  Context,
+  Crypto,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Schema,
+  Stream,
+} from "effect";
+import { digestCanonicalBatch, EMPTY_TAIL_DIGEST } from "effect-agent/digest";
 import {
   CanonicalBatch,
   CanonicalRecord,
@@ -6,8 +20,8 @@ import {
   CanonicalSequence,
   Digest,
   ObservationOffset,
-} from "@effect-agent/thread/Records";
-import { DEFAULT_OWNERSHIP_LEASE_DURATION } from "@effect-agent/thread/SubmissionLedger";
+} from "effect-agent/records";
+import { DEFAULT_OWNERSHIP_LEASE_DURATION } from "effect-agent/submission-ledger";
 import {
   AppendConflict,
   AppendResult,
@@ -31,21 +45,7 @@ import {
   SaveRecoveryCheckpointRequest,
   MAX_THREAD_EXPORT_RECORDS,
   type ThreadRecoveryCheckpoints,
-} from "@effect-agent/thread/ThreadStore";
-import { BrowserCrypto } from "@effect/platform-browser";
-import { SqliteClient } from "@effect/sql-sqlite-do";
-import {
-  Clock,
-  Context,
-  Crypto,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  Ref,
-  Schema,
-  Stream,
-} from "effect";
+} from "effect-agent/thread-store";
 import * as SqlClientService from "effect/unstable/sql/SqlClient";
 
 import {
@@ -81,7 +81,7 @@ export interface DoStorageOptions {
   readonly observationPollInterval?: number | undefined;
   /**
    * Submission ownership lease duration in milliseconds (D5). Defaults to
-   * `DEFAULT_OWNERSHIP_LEASE_DURATION` from `@effect-agent/thread`.
+   * `DEFAULT_OWNERSHIP_LEASE_DURATION` from `effect-agent/submission-ledger`.
    */
   readonly ownershipLeaseDuration?: number | undefined;
   /**

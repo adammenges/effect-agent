@@ -1,47 +1,38 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentPolicy, SubagentRuntime } from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import {
-  ThreadId,
-  RunId,
-  ToolCallId,
-  TurnId,
-  type SubmissionId,
-} from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import {
-  DurableStep,
-  DurableStepError,
-  ToolExecutionClass,
-} from "@effect-agent/engine/DurableStep";
-import { RunToolAuthorization } from "@effect-agent/engine/RunOptions";
-import { ObligationThresholds } from "@effect-agent/thread/Admin";
+import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect";
+import { ObligationThresholds } from "effect-agent/admin";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
 import {
   DurableWorkerBinding,
   type DurableBindingFailure,
   type ResolvedBinding,
-} from "@effect-agent/thread/AgentRegistration";
+} from "effect-agent/agent-registration";
 import {
   DurableAgentRuntime,
   DurableRuntimeConfig,
   type DurableSubmitFailure,
   type DurableWorkerFailure,
   type Receipt,
-} from "@effect-agent/thread/DurableAgentRuntime";
+} from "effect-agent/durable-agent-runtime";
 import {
   DurableRuntimeFailpointError,
   DurableRuntimeFailpointLocation,
-} from "@effect-agent/thread/DurableFailpoint";
+} from "effect-agent/durable-failpoint";
+import { DurableStep, DurableStepError, ToolExecutionClass } from "effect-agent/durable-step";
+import { IdGenerator } from "effect-agent/id-generator";
+import { ThreadId, RunId, ToolCallId, TurnId, type SubmissionId } from "effect-agent/identifiers";
 import {
   DefinitionDigests,
   Digest,
   type CanonicalRecordEnvelope,
   type BatchId,
   type ProducerId,
-} from "@effect-agent/thread/Records";
-import { childThreadIdFor } from "@effect-agent/thread/RunJournal";
+} from "effect-agent/records";
+import { childThreadIdFor } from "effect-agent/run-journal";
+import { RunToolAuthorization } from "effect-agent/run-options";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentPolicy } from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
 import {
   AbortCommand,
   ApprovalDecisionCommand,
@@ -56,11 +47,10 @@ import {
   type Settlement,
   type SubmissionSnapshot,
   type UnknownResolution,
-} from "@effect-agent/thread/SubmissionLedger";
-import { DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
-import { verifyThreadInvariants } from "@effect-agent/thread/ThreadInvariants";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect";
+} from "effect-agent/submission-ledger";
+import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
+import { verifyThreadInvariants } from "effect-agent/thread-invariants";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
 import { FastCheck } from "effect/testing";
 import {
   LanguageModel,
@@ -769,7 +759,7 @@ const makeLaneFixture = Effect.fn("Chaos.makeLaneFixture")(function* (
 
       const childBinding = Agent.withModel(childDefinition, childModel);
 
-      const delegationLayer = SubagentRuntime.layer(chaosDelegation, childBinding, {
+      const delegationLayer = Subagent.layer(chaosDelegation, childBinding, {
         mapChildFailure: (failure) => ChaosDelegationFailed.make({ childErrorTag: failure._tag }),
         durable: { targetDigests: childDigestStrings(laneIndex) },
       }).pipe(Layer.provide(delegationSupport));

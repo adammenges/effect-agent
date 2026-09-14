@@ -1,49 +1,49 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import { MessageRef, MessagingError } from "@effect-agent/core/Messaging";
-import { IdempotencyKey, Principal } from "@effect-agent/core/Receipt";
-import { RunToolAuthorization } from "@effect-agent/engine/RunOptions";
-import { memoryMessageDeliveryStoreLayer } from "@effect-agent/storage-memory/MemoryMessageDeliveryStore";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { DurableWorkerBinding } from "@effect-agent/thread/AgentRegistration";
+import { memoryMessageDeliveryStoreLayer } from "@effect-agent/storage-memory/memory-message-delivery-store";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
+import { NodeCrypto } from "@effect/platform-node";
+import { describe, expect, it } from "@effect/vitest";
+import { Context, Duration, Effect, Layer, Option, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { DurableWorkerBinding } from "effect-agent/agent-registration";
 import {
   DurableAgentRuntime,
   DurableRuntimeConfig,
   type DurableSubmitOptions,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpoint } from "@effect-agent/thread/DurableFailpoint";
+} from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpoint } from "effect-agent/durable-failpoint";
+import { ThreadId } from "effect-agent/identifiers";
 import {
   MessageDeliveryDriver,
   MessageDeliveryFailpoint,
   MessageDeliveryFailpointError,
   MessageDeliveryStore,
-} from "@effect-agent/thread/MessageDelivery";
+} from "effect-agent/message-delivery";
+import { MessageRef, MessagingError } from "effect-agent/messaging";
 import {
   PeerAuthorizer,
   PeerDeliveryLifetime,
   PeerMessageCapacity,
   PeerRoutes,
   type PeerAuthorizationRequest,
-} from "@effect-agent/thread/MessagingHost";
-import { PreparedInputAdmission } from "@effect-agent/thread/PreparedInputAdmission";
+} from "effect-agent/messaging-host";
+import { PreparedInputAdmission } from "effect-agent/prepared-input-admission";
+import { IdempotencyKey, Principal } from "effect-agent/receipt";
 import {
   DefinitionDigests,
   DeploymentId,
   Digest,
   PersistedJson,
   ProducerId,
-} from "@effect-agent/thread/Records";
-import { ScheduledInputRefused, ScheduledInputRetryable } from "@effect-agent/thread/Schedule";
-import { SubmissionLedger, SubmissionLookupByKey } from "@effect-agent/thread/SubmissionLedger";
-import { PreparedInput } from "@effect-agent/thread/Subscription";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
-import { NodeCrypto } from "@effect/platform-node";
-import { describe, expect, it } from "@effect/vitest";
-import { Context, Duration, Effect, Layer, Option, Schema, Stream } from "effect";
+} from "effect-agent/records";
+import { RunToolAuthorization } from "effect-agent/run-options";
+import { ScheduledInputRefused, ScheduledInputRetryable } from "effect-agent/schedule";
+import { SubmissionLedger, SubmissionLookupByKey } from "effect-agent/submission-ledger";
+import { PreparedInput } from "effect-agent/subscription";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { TestClock } from "effect/testing";
 import { LanguageModel, Model, Toolkit, type Response } from "effect/unstable/ai";
 

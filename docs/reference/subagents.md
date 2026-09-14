@@ -47,10 +47,32 @@ Set `failure` and `mapChildFailure` for application-specific errors. These custo
 are independent. Missing mappings validate the default value against the selected Schema and
 fail with `SubagentProjectionFailure` if it does not fit.
 
+For example, replace the walkthrough's `delegation.ts` with this declaration to omit research
+notes from the parent result, expose a `partial` flag, and set explicit child limits:
+
+<<< @/snippets/travel-planner/delegation-custom.ts{ts twoslash}
+
+Map child failures when constructing its handler Layer:
+
+```ts twoslash
+import { Subagent } from "effect-agent";
+import { Layer } from "effect";
+import { Research, ResearchFailed } from "./delegation-custom.ts";
+import { ModelLive } from "./node-agent.ts";
+import { TravelToolsLive } from "./tools.ts";
+
+const ResearchLive = Subagent.layer(Research, ModelLive, {
+  mapChildFailure: (error) => ResearchFailed.make({ reason: error._tag }),
+}).pipe(Layer.provide(TravelToolsLive));
+```
+
+Update the parent's instructions to read `activities` and check `partial` when using this
+custom result instead of the default `{ output, budgetExhausted }` envelope.
+
 Child terminal events and the `projectResult` context expose `usage` and `delegatedUsage`.
 Durable joins preserve verified totals across recovery; see [usage accounting](../guide/run-agents.md#provider-usage-and-cost-evidence).
 For live child deltas or pricing, pass `child.budget` or `child.estimateCostMicrousd` to
-`SubagentRuntime.layer`.
+`Subagent.layer`.
 
 Custom `prepareInput` receives `context.source` as `"tool"` or `"programmatic"`.
 Only the tool variant contains `context.toolCallId` and `context.parent.runId`.
@@ -80,7 +102,7 @@ Ephemeral settlement refunds reported unused allocation. Durable settlement cons
 charges the reservation when usage is unavailable. Durable admission rejects a reservation
 that exceeds the shared pool, including its child-count and concurrency limits.
 
-In the [attached walkthrough](../guide/subagents/ephemeral-attached), parent, delegation, and child limits apply at different points:
+With the custom declaration above, parent, delegation, and child limits apply at different points:
 
 | Setting in this example            | Meaning                                                      |
 | ---------------------------------- | ------------------------------------------------------------ |
@@ -91,7 +113,7 @@ In the [attached walkthrough](../guide/subagents/ephemeral-attached), parent, de
 | Child `maxToolCalls: 8`            | The child's definition ceiling; a delegation cannot raise it |
 | Delegation `maxResultBytes: 4_096` | Maximum encoded result returned to the parent                |
 
-In the [attached example](../guide/subagents/ephemeral-attached), change `delegation.ts` to let the parent request a smaller allowance:
+Add the following to the custom declaration above to let the parent request a smaller allowance:
 
 ```diff
 +parameters: Schema.Struct({
@@ -114,7 +136,8 @@ up the first child. See [delegation budgets](../concepts/budgets#delegation-budg
 ## Let the parent handle a failed child {#handle-failures}
 
 The [attached example](../guide/subagents/ephemeral-attached) fails the parent tool batch if the child fails. To make expected failures available to
-the parent model as result data, change one option in `delegation.ts`:
+the parent model as result data, add `failureMode: "return"` to the declaration. In the custom
+declaration above, replace its explicit error mode:
 
 ```diff
 -failureMode: "error",
@@ -181,7 +204,7 @@ another child. Handoff remains unsupported.
 
 Background workers normally reserve against their source's subtree. A host may separately
 fund a root's reusable worker by supplying `WorkerBudgetAuthorizer` from
-`@effect-agent/thread/WorkerHost` and allowing the exact source, destination, and allowance.
+`effect-agent/worker-host` and allowing the exact source, destination, and allowance.
 The default denies this permission. Request it from author-owned code:
 
 ```ts
@@ -214,7 +237,7 @@ Set `WorkerHostConfig.maxActiveWorkersPerSource` to bound concurrent background 
 from the root's Tool execution concurrency; omission retains the prior concurrency ceiling.
 
 When each source has an authorized concurrency preference, provide `WorkerConcurrencyResolver`
-from `@effect-agent/thread/WorkerHost` through an Effect Layer. It receives the immutable source,
+from `effect-agent/worker-host` through an Effect Layer. It receives the immutable source,
 worker, principal, and explicitly selected canonical owner submission. Return `Option.some({
 maxActiveWorkersPerSource })` to narrow the fixed host ceiling, or `Option.none()` to retain it.
 The runtime resolves this limit inside the source reservation CAS loop, including retries after
@@ -228,7 +251,7 @@ Run allowance.
 
 ### Resolve policies from captured input
 
-Supply `WorkerPolicyResolver` from `@effect-agent/thread/WorkerHost` when immutable application
+Supply `WorkerPolicyResolver` from `effect-agent/worker-host` when immutable application
 input captures an execution policy separately from a finite, versioned Agent Definition. Provide
 its implementation through an Effect Layer and retain the Layer's construction dependencies.
 The default returns `Option.none()`, preserving registered policy inheritance and overrides.
@@ -281,8 +304,8 @@ If delivery is retried, reuse the same key and parameters so the host can recogn
 Use a new key for a new input. Native model tools derive their keys automatically.
 
 ```ts twoslash
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { IdempotencyKey } from "@effect-agent/core/Receipt";
+import { Subagent } from "effect-agent";
+import { IdempotencyKey } from "effect-agent/receipt";
 import { Effect, Schema } from "effect";
 
 import { Research } from "./delegation.ts";

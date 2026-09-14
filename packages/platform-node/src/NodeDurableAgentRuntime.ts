@@ -1,4 +1,34 @@
-import { type SubmissionId } from "@effect-agent/core/Identifiers";
+import { messageDeliveryStoreLayer } from "@effect-agent/storage-sqlite/sqlite-message-delivery-store";
+import { scheduleStoreLayer } from "@effect-agent/storage-sqlite/sqlite-schedule-store";
+import {
+  SqliteStorageConfig,
+  SqliteStorageConfigValue,
+} from "@effect-agent/storage-sqlite/sqlite-storage-config";
+import {
+  type SqliteStorageFailpoint,
+  type SqliteStorageFailpointHandler,
+} from "@effect-agent/storage-sqlite/sqlite-storage-failpoint";
+import { submissionLedgerLayer } from "@effect-agent/storage-sqlite/sqlite-submission-ledger";
+import {
+  threadStoreLayer,
+  storageFailpointLayer,
+  type SqliteStorageInitializationError,
+} from "@effect-agent/storage-sqlite/sqlite-thread-store";
+import { NodeCrypto } from "@effect/platform-node";
+import { SqliteClient } from "@effect/sql-sqlite-node";
+import { Context, type Crypto, Duration, Effect, Layer, Ref, Schema } from "effect";
+import { type AgentRegistration, type ResolvedBinding } from "effect-agent/agent-registration";
+import { DurableAgentRuntime, DurableRuntimeConfig } from "effect-agent/durable-agent-runtime";
+import {
+  DurableRuntimeFailpoint,
+  type DurableRuntimeFailpointHandler,
+} from "effect-agent/durable-failpoint";
+import { type SubmissionId } from "effect-agent/identifiers";
+import {
+  type MessageDeliveryError,
+  type MessageDeliveryStore,
+} from "effect-agent/message-delivery";
+import { DeploymentId, ProducerId } from "effect-agent/records";
 import {
   CurrentToolFailureObserver,
   RunContextPreparationPassthrough,
@@ -7,53 +37,17 @@ import {
   type RunContextPreparation,
   type RunCostEstimator,
   type RunToolFailureObserver,
-} from "@effect-agent/engine/RunOptions";
-import { messageDeliveryStoreLayer } from "@effect-agent/storage-sqlite/SqliteMessageDeliveryStore";
-import { scheduleStoreLayer } from "@effect-agent/storage-sqlite/SqliteScheduleStore";
-import {
-  SqliteStorageConfig,
-  SqliteStorageConfigValue,
-} from "@effect-agent/storage-sqlite/SqliteStorageConfig";
-import {
-  type SqliteStorageFailpoint,
-  type SqliteStorageFailpointHandler,
-} from "@effect-agent/storage-sqlite/SqliteStorageFailpoint";
-import { submissionLedgerLayer } from "@effect-agent/storage-sqlite/SqliteSubmissionLedger";
-import {
-  threadStoreLayer,
-  storageFailpointLayer,
-  type SqliteStorageInitializationError,
-} from "@effect-agent/storage-sqlite/SqliteThreadStore";
-import {
-  type AgentRegistration,
-  type ResolvedBinding,
-} from "@effect-agent/thread/AgentRegistration";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  DurableRuntimeFailpoint,
-  type DurableRuntimeFailpointHandler,
-} from "@effect-agent/thread/DurableFailpoint";
-import {
-  type MessageDeliveryError,
-  type MessageDeliveryStore,
-} from "@effect-agent/thread/MessageDelivery";
-import { DeploymentId, ProducerId } from "@effect-agent/thread/Records";
-import { type ScheduleStore } from "@effect-agent/thread/Schedule";
+} from "effect-agent/run-options";
+import { type ScheduleStore } from "effect-agent/schedule";
 import {
   DEFAULT_OWNERSHIP_LEASE_DURATION,
   ReleaseOwnershipRequest,
   SubmissionLedger,
   type OwnershipToken,
-} from "@effect-agent/thread/SubmissionLedger";
-import { type ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { type WakeScheduler } from "@effect-agent/thread/WakeScheduler";
-import { NodeCrypto } from "@effect/platform-node";
-import { SqliteClient } from "@effect/sql-sqlite-node";
-import { Context, type Crypto, Duration, Effect, Layer, Ref, Schema } from "effect";
+} from "effect-agent/submission-ledger";
+import { type ThreadStore } from "effect-agent/thread-store";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { type WakeScheduler } from "effect-agent/wake-scheduler";
 import type * as SqlClientService from "effect/unstable/sql/SqlClient";
 
 import { NodeWakeSchedulerConfig, nodeWakeSchedulerLayer } from "./NodeWakeScheduler.ts";

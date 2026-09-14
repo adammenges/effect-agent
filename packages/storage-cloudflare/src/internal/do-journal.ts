@@ -1,15 +1,15 @@
-import { EMPTY_TAIL_DIGEST } from "@effect-agent/thread/Digest";
-import { CanonicalSequence, ProducerEpoch } from "@effect-agent/thread/Records";
-import { checkV2ThreadLayout } from "@effect-agent/thread/SqlStorageV2Upgrade";
+import { SqliteMigrator } from "@effect/sql-sqlite-do";
+import { Effect, Schema, Stream } from "effect";
+import { EMPTY_TAIL_DIGEST } from "effect-agent/digest";
+import { CanonicalSequence, ProducerEpoch } from "effect-agent/records";
+import { checkV2ThreadLayout } from "effect-agent/sql-storage-v2-upgrade";
 import {
   MAX_THREAD_EXPORT_RECORDS,
   CheckpointRejected,
   FenceRejected,
   ThreadNotMaterialized,
   type SaveRecoveryCheckpointRequest,
-} from "@effect-agent/thread/ThreadStore";
-import { SqliteMigrator } from "@effect/sql-sqlite-do";
-import { Effect, Schema, Stream } from "effect";
+} from "effect-agent/thread-store";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { SqlError } from "effect/unstable/sql/SqlError";
 

@@ -1,7 +1,7 @@
-import { AdmissionLimitExceeded } from "@effect-agent/platform-cloudflare/CloudflareConfig";
-import { CloudflareThreadClient } from "@effect-agent/platform-cloudflare/CloudflareThreadClient";
-import { ApprovalDecisionCommand } from "@effect-agent/thread/SubmissionLedger";
+import { AdmissionLimitExceeded } from "@effect-agent/platform-cloudflare/cloudflare-config";
+import { CloudflareThreadClient } from "@effect-agent/platform-cloudflare/cloudflare-thread-client";
 import { Effect } from "effect";
+import { ApprovalDecisionCommand } from "effect-agent/submission-ledger";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

@@ -43,7 +43,7 @@ Schema with `Output.text`. The Schema must encode as a string; its checks, trans
 service requirements still apply.
 
 ```ts twoslash
-import * as Output from "@effect-agent/engine/Output";
+import { Output } from "effect-agent";
 import { Schema } from "effect";
 
 const Reply = Output.text(Schema.String.check(Schema.isMaxLength(20_000)));
@@ -117,7 +117,7 @@ const captured = Effect.gen(function* () {
 Use `Stream.provide` with `stream`. Keep the model layer around both `start` and the detached
 run's lifetime.
 
-Pass a model Layer directly to `SubagentRuntime.layer(delegation, model)`. Durable registration
+Pass a model Layer directly to `Subagent.layer(delegation, model)`. Durable registration
 accepts `{ agent: definition, model, definitions: versions }`. `Agent.withModel` remains available
 when an application wants a reusable binding. The model Layer must provide all three model
 services and have no construction error. Put
@@ -148,8 +148,8 @@ Set `completion` when a successful tool result should become the agent's output 
 model turn. The projector receives decoded tool parameters and result:
 
 ```ts twoslash
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
+import { Agent } from "effect-agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
 import { Effect, Schema } from "effect";
 import { Tool, Toolkit } from "effect/unstable/ai";
 

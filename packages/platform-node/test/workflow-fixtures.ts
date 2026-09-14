@@ -1,31 +1,27 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId } from "@effect-agent/core/Identifiers";
 import {
   NodeDurableAgentRuntime,
   type NodeDurableAgentRuntimeOptions,
-} from "@effect-agent/platform-node/NodeDurableAgentRuntime";
+} from "@effect-agent/platform-node/node-durable-agent-runtime";
 import {
   NodeWorkflowRepairTrigger,
   SqlWorkflowDispatchStore,
-} from "@effect-agent/platform-node/NodeWorkflow";
-import { type AgentRegistration } from "@effect-agent/thread/AgentRegistration";
-import { digestDefinitions } from "@effect-agent/thread/Digest";
-import {
-  DefinitionDigestInput,
-  DeploymentId,
-  type DefinitionDigests,
-} from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadRead, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { WorkflowAgentHost } from "@effect-agent/workflow/WorkflowAgentHost";
+} from "@effect-agent/platform-node/node-workflow";
+import { WorkflowAgentHost } from "@effect-agent/workflow/workflow-agent-host";
 import {
   WorkflowDispatchScan,
   WorkflowDispatchStore,
-} from "@effect-agent/workflow/WorkflowDispatch";
+} from "@effect-agent/workflow/workflow-dispatch";
 import { NodeCrypto } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Effect, FileSystem, Layer, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { type AgentRegistration } from "effect-agent/agent-registration";
+import { digestDefinitions } from "effect-agent/digest";
+import { ThreadId } from "effect-agent/identifiers";
+import { DefinitionDigestInput, DeploymentId, type DefinitionDigests } from "effect-agent/records";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadRead, ThreadStore } from "effect-agent/thread-store";
 import { LanguageModel, Model, Toolkit, type Prompt, type Response } from "effect/unstable/ai";
 import { ClusterWorkflowEngine, SingleRunner } from "effect/unstable/cluster";
 import { WorkflowEngine } from "effect/unstable/workflow";

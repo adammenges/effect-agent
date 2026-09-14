@@ -1,25 +1,25 @@
 import * as v8 from "node:v8";
 import * as vm from "node:vm";
 
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { ObligationThresholds } from "@effect-agent/thread/Admin";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
+import { NodeCrypto } from "@effect/platform-node";
+import { describe, expect, it } from "@effect/vitest";
+import { Duration, Effect, Layer, Schema, Stream } from "effect";
+import { ObligationThresholds } from "effect-agent/admin";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
 import {
   DurableAgentRuntime,
   DurableRuntimeConfig,
   type DurableSubmitOptions,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpoint } from "@effect-agent/thread/DurableFailpoint";
-import { DeploymentId, Digest, DefinitionDigests, ProducerId } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal, SubmissionLedger } from "@effect-agent/thread/SubmissionLedger";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
-import { NodeCrypto } from "@effect/platform-node";
-import { describe, expect, it } from "@effect/vitest";
-import { Duration, Effect, Layer, Schema, Stream } from "effect";
+} from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpoint } from "effect-agent/durable-failpoint";
+import { ThreadId } from "effect-agent/identifiers";
+import { DeploymentId, Digest, DefinitionDigests, ProducerId } from "effect-agent/records";
+import { IdempotencyKey, Principal, SubmissionLedger } from "effect-agent/submission-ledger";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { LanguageModel, Model, Toolkit, type Response } from "effect/unstable/ai";
 
 /**

@@ -36,6 +36,7 @@ tester.run("no-internal-barrel", plugin.rules["no-internal-barrel"], {
 tester.run("public-entrypoint", plugin.rules["public-entrypoint"], {
   valid: [
     { filename: root, code: 'export * as Agent from "./Agent.ts";' },
+    { filename: root, code: 'export * as Agent from "./core/Agent.ts";' },
     {
       filename: root,
       code: 'export { pipe, flow } from "./Function.ts"; export * as Function from "./Function.ts";',
@@ -93,9 +94,9 @@ tester.run("no-self-barrel-import", plugin.rules["no-self-barrel-import"], {
       'import type { Own } from "../internal/Own.ts";',
       'import { Agent } from "@effect-agent/core";',
       'import * as Agent from "@effect-agent/core/Agent";',
-      'import { Journal } from "@effect-agent/thread/testing";',
-      'import { Journal } from "@effect-agent/thread/testing/Journal";',
-      'import { History } from "@effect-agent/thread/history";',
+      'import { Journal } from "effect-agent/testing";',
+      'import { Journal } from "effect-agent/testing/Journal";',
+      'import { History } from "effect-agent/history";',
       'import { Agent } from "effect-agent";',
       'import { Effect } from "effect";',
       'import { HttpApi } from "effect/unstable/httpapi";',

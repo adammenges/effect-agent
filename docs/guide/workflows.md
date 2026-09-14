@@ -32,7 +32,7 @@ its Schema-decoded output. A pending Agent suspends the handler through Effect's
 fiber alive in the parent.
 
 ```ts twoslash
-import { Agent } from "@effect-agent/core";
+import { Agent } from "effect-agent";
 import { AgentWorkflow } from "@effect-agent/workflow";
 import { Schema } from "effect";
 import { Toolkit } from "effect/unstable/ai";
@@ -103,7 +103,7 @@ ordinary Layer composition. The Workflow handler passes only a Thread ID to
 `processThreadHead`; it cannot replace captured model or tool services on an execution.
 
 Keep `deploymentId` identical in both runtime and Workflow host options. The optional
-`workflowName` is a stable versioned prefix, defaulting to `effect-agent/Submission/v1`.
+`workflowName` is a stable versioned prefix, defaulting to `effect-agent/submission/v1`.
 The native name appends `/deployment/<length>:<deploymentId>`. Keep one host registration per
 deployment, name, and engine. Changing that identity leaves the old dispatch obligations for
 their original host to repair.
@@ -162,8 +162,8 @@ Closing the host Scope stops its repair trigger and closes acquired resources.
 
 ## Node.js with SQLite {#node}
 
-Install `@effect-agent/platform-node@beta`, `@effect-agent/core@beta`,
-`@effect-agent/thread@beta`, `@effect/ai-openai@4.0.0-rc.112`,
+Install `@effect-agent/platform-node@beta`, `effect-agent@beta`,
+`@effect/ai-openai@4.0.0-rc.112`,
 `@effect/platform-node@4.0.0-rc.112`, and `@effect/sql-sqlite-node@4.0.0-rc.112` alongside
 `effect@4.0.0-rc.112` and the Workflow package.
 
@@ -176,12 +176,12 @@ persist in SQL. The dispatch store shares that SQL connection. Canonical agent h
 submission ledger use a separate SQLite file.
 
 ```ts twoslash
-import { NodeDurableAgentRuntime } from "@effect-agent/platform-node/NodeDurableAgentRuntime";
+import { NodeDurableAgentRuntime } from "@effect-agent/platform-node/node-durable-agent-runtime";
 import {
   NodeWorkflowRepairTrigger,
   SqlWorkflowDispatchStore,
-} from "@effect-agent/platform-node/NodeWorkflow";
-import { WorkflowAgentHost } from "@effect-agent/workflow/WorkflowAgentHost";
+} from "@effect-agent/platform-node/node-workflow";
+import { WorkflowAgentHost } from "@effect-agent/workflow/workflow-agent-host";
 import { NodeCrypto } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Layer } from "effect";

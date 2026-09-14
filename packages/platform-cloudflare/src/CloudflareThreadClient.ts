@@ -1,21 +1,23 @@
-import { AgentInputError } from "@effect-agent/core/AgentError";
-import { AgentId, type ThreadId } from "@effect-agent/core/Identifiers";
-import { InputMessage } from "@effect-agent/core/Messaging";
-import { DigestError } from "@effect-agent/thread/Digest";
+import { BrowserCrypto } from "@effect/platform-browser";
+import { Context, Crypto, Duration, Effect, Layer, Schema } from "effect";
+import { AgentInputError } from "effect-agent/agent-error";
+import { DigestError } from "effect-agent/digest";
 import {
   Receipt,
   type DurableSubmitAgent,
   type DurableSubmitOptions,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpointError } from "@effect-agent/thread/DurableFailpoint";
-import { OperationDenied } from "@effect-agent/thread/OperationAuthorizer";
+} from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpointError } from "effect-agent/durable-failpoint";
+import { AgentId, type ThreadId } from "effect-agent/identifiers";
+import { InputMessage } from "effect-agent/messaging";
+import { OperationDenied } from "effect-agent/operation-authorizer";
 import {
   CanonicalRecordEnvelope,
   CanonicalSequence,
   DefinitionDigests,
   PersistedJson,
   WorkerAdmission,
-} from "@effect-agent/thread/Records";
+} from "effect-agent/records";
 import {
   AdmissionFence,
   AdmissionGroup,
@@ -35,16 +37,14 @@ import {
   UnknownResolutionCommand,
   UnknownResolutionConflict,
   UnknownResolutionIntent,
-} from "@effect-agent/thread/SubmissionLedger";
-import { SubmissionStatus } from "@effect-agent/thread/SubmissionStatus";
+} from "effect-agent/submission-ledger";
+import { SubmissionStatus } from "effect-agent/submission-status";
 import {
   AppendConflict,
   ThreadNotMaterialized,
   ThreadStoreError,
   FenceRejected,
-} from "@effect-agent/thread/ThreadStore";
-import { BrowserCrypto } from "@effect/platform-browser";
-import { Context, Crypto, Duration, Effect, Layer, Schema } from "effect";
+} from "effect-agent/thread-store";
 import { RpcTracing } from "effect-cf";
 
 import { DurableAlarmError } from "./Alarm.ts";

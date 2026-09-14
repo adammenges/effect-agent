@@ -1,26 +1,23 @@
-import { SqliteStorageFailpoint } from "@effect-agent/storage-sqlite/SqliteStorageFailpoint";
-import { submissionLedgerLayer } from "@effect-agent/storage-sqlite/SqliteSubmissionLedger";
+import { SqliteStorageFailpoint } from "@effect-agent/storage-sqlite/sqlite-storage-failpoint";
+import { submissionLedgerLayer } from "@effect-agent/storage-sqlite/sqlite-submission-ledger";
 import {
   threadStoreLayer,
   storageConfigLayer,
-} from "@effect-agent/storage-sqlite/SqliteThreadStore";
+} from "@effect-agent/storage-sqlite/sqlite-thread-store";
 import {
   CERTIFICATION_SCENARIOS,
   TIER2_UNREACHED_LOCATIONS,
   certifyDurableAdapters,
   tier2NeverFiredLocations,
-} from "@effect-agent/testing/Certification";
-import { DurableRuntimeFailpointLocation } from "@effect-agent/thread/DurableFailpoint";
-import {
-  CertificationCaseResult,
-  CertificationReport,
-} from "@effect-agent/thread/testing/Certification";
-import { submissionLedgerConformanceCases } from "@effect-agent/thread/testing/SubmissionLedgerConformance";
-import { threadStoreConformanceCases } from "@effect-agent/thread/testing/ThreadStoreConformance";
+} from "@effect-agent/testing/certification";
 import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Schema } from "effect";
+import { DurableRuntimeFailpointLocation } from "effect-agent/durable-failpoint";
+import { CertificationCaseResult, CertificationReport } from "effect-agent/testing/certification";
+import { submissionLedgerConformanceCases } from "effect-agent/testing/submission-ledger-conformance";
+import { threadStoreConformanceCases } from "effect-agent/testing/thread-store-conformance";
 
 import { maybeWriteReport } from "./certification-report-io.ts";
 

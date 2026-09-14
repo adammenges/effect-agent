@@ -2,25 +2,12 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { type SubmissionId } from "@effect-agent/core/Identifiers";
 import {
   NodeDurableAgentRuntime,
   type NodeDurableAgentRuntimeOptions,
-} from "@effect-agent/platform-node/NodeDurableAgentRuntime";
-import { NodeDurableHost } from "@effect-agent/platform-node/NodeDurableHost";
-import { type SqliteStorageFailpointLocation } from "@effect-agent/storage-sqlite/SqliteStorageError";
-import { type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { type DurableRuntimeFailpointLocation } from "@effect-agent/thread/DurableFailpoint";
-import { type CanonicalRecordEnvelope } from "@effect-agent/thread/Records";
-import {
-  SubmissionLedger,
-  SubmissionLookupById,
-  SubmissionLookupByKey,
-  submissionInputRecordId,
-  submissionSettlementRecordId,
-  type SubmissionSnapshot,
-} from "@effect-agent/thread/SubmissionLedger";
-import { ThreadRead, ThreadStore } from "@effect-agent/thread/ThreadStore";
+} from "@effect-agent/platform-node/node-durable-agent-runtime";
+import { NodeDurableHost } from "@effect-agent/platform-node/node-durable-host";
+import { type SqliteStorageFailpointLocation } from "@effect-agent/storage-sqlite/sqlite-storage-error";
 import { expect } from "@effect/vitest";
 import {
   Cause,
@@ -33,6 +20,19 @@ import {
   Stream,
   type Scope,
 } from "effect";
+import { type ResolvedBinding } from "effect-agent/agent-registration";
+import { type DurableRuntimeFailpointLocation } from "effect-agent/durable-failpoint";
+import { type SubmissionId } from "effect-agent/identifiers";
+import { type CanonicalRecordEnvelope } from "effect-agent/records";
+import {
+  SubmissionLedger,
+  SubmissionLookupById,
+  SubmissionLookupByKey,
+  submissionInputRecordId,
+  submissionSettlementRecordId,
+  type SubmissionSnapshot,
+} from "effect-agent/submission-ledger";
+import { ThreadRead, ThreadStore } from "effect-agent/thread-store";
 
 import {
   CRASH_DEPLOYMENT_ID,

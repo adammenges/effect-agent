@@ -1,51 +1,9 @@
 import {
-  SemanticIndexLimits,
-  SemanticQueryLimits,
-  indexMemorySource,
-  querySemanticMemory,
-} from "@effect-agent/capabilities/SemanticMemory";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import * as Memory from "@effect-agent/core/Memory";
-import { MemoryRecallLimits, type MemoryLookup } from "@effect-agent/core/MemoryReference";
-import { MemoryAccess } from "@effect-agent/core/MemoryRevalidation";
-import {
-  MemoryKey,
-  MemoryReader,
-  MemoryWrite,
-  MemoryWriter,
-  type ActiveMemoryDocument,
-  type MemoryDocument,
-} from "@effect-agent/core/MemoryStore";
-import { SemanticMemoryProfile } from "@effect-agent/core/SemanticMemoryIndex";
-import {
   InMemorySemanticIndexCapacity,
   inMemorySemanticIndexLayer,
-} from "@effect-agent/storage-memory/MemorySemanticIndex";
-import { activityProcessorStoreLayer } from "@effect-agent/storage-sqlite/SqliteActivityStore";
-import { layer as sqliteThreadStoreLayer } from "@effect-agent/storage-sqlite/SqliteThreadStore";
-import { ActivityProcessorKey, type PreparedActivity } from "@effect-agent/thread/ActivityStore";
-import {
-  ActivityPassLimits,
-  processCommittedActivity,
-} from "@effect-agent/thread/CommittedActivity";
-import {
-  BatchId,
-  CanonicalBatch,
-  DeploymentId,
-  ProducerEpoch,
-  ProducerId,
-  RecordEnvelope,
-  RecordId,
-  UserInputRecorded,
-  type CanonicalRecordEnvelope,
-} from "@effect-agent/thread/Records";
-import { memoryStoreLayer } from "@effect-agent/thread/SqlMemoryStore";
-import {
-  FencedAppendRequest,
-  ThreadMaterialization,
-  ThreadStore,
-  ThreadTailRequest,
-} from "@effect-agent/thread/ThreadStore";
+} from "@effect-agent/storage-memory/memory-semantic-index";
+import { activityProcessorStoreLayer } from "@effect-agent/storage-sqlite/sqlite-activity-store";
+import { layer as sqliteThreadStoreLayer } from "@effect-agent/storage-sqlite/sqlite-thread-store";
 import { NodeCrypto } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import {
@@ -60,6 +18,45 @@ import {
   Path,
   Schema,
 } from "effect";
+import { ActivityProcessorKey, type PreparedActivity } from "effect-agent/activity-store";
+import { ActivityPassLimits, processCommittedActivity } from "effect-agent/committed-activity";
+import { ThreadId } from "effect-agent/identifiers";
+import * as Memory from "effect-agent/memory";
+import { MemoryRecallLimits, type MemoryLookup } from "effect-agent/memory-reference";
+import { MemoryAccess } from "effect-agent/memory-revalidation";
+import {
+  MemoryKey,
+  MemoryReader,
+  MemoryWrite,
+  MemoryWriter,
+  type ActiveMemoryDocument,
+  type MemoryDocument,
+} from "effect-agent/memory-store";
+import {
+  BatchId,
+  CanonicalBatch,
+  DeploymentId,
+  ProducerEpoch,
+  ProducerId,
+  RecordEnvelope,
+  RecordId,
+  UserInputRecorded,
+  type CanonicalRecordEnvelope,
+} from "effect-agent/records";
+import {
+  SemanticIndexLimits,
+  SemanticQueryLimits,
+  indexMemorySource,
+  querySemanticMemory,
+} from "effect-agent/semantic-memory";
+import { SemanticMemoryProfile } from "effect-agent/semantic-memory-index";
+import { memoryStoreLayer } from "effect-agent/sql-memory-store";
+import {
+  FencedAppendRequest,
+  ThreadMaterialization,
+  ThreadStore,
+  ThreadTailRequest,
+} from "effect-agent/thread-store";
 import { AiError, EmbeddingModel } from "effect/unstable/ai";
 
 import {

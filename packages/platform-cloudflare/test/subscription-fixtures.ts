@@ -1,27 +1,23 @@
-import { AgentId, ThreadId } from "@effect-agent/core/Identifiers";
 import {
   makeSubscriptionPartitionAlarmHandler,
   SubscriptionPartitionAlarmExtension,
   SubscriptionAlarmExtensionError,
   SubscriptionPartitionIdentity,
-} from "@effect-agent/platform-cloudflare/CloudflareSubscriptions";
-import { EventSources, makeEventSource } from "@effect-agent/thread/EventSource";
-import { Principal } from "@effect-agent/thread/SubmissionLedger";
+} from "@effect-agent/platform-cloudflare/cloudflare-subscriptions";
+import { DateTime, Effect, Layer, Schema } from "effect";
+import { EventSources, makeEventSource } from "effect-agent/event-source";
+import { AgentId, ThreadId } from "effect-agent/identifiers";
+import { Principal } from "effect-agent/submission-ledger";
 import {
   SourcePartition,
   SubscriptionAuthorizer,
   SubscriptionFailpoint,
-} from "@effect-agent/thread/Subscription";
+} from "effect-agent/subscription";
 import {
   makeSubscriptionInputBinding,
   SubscriptionInputBindings,
-} from "@effect-agent/thread/SubscriptionInput";
-import {
-  SubscriptionDriver,
-  SubscriptionIntake,
-  Subscriptions,
-} from "@effect-agent/thread/Subscriptions";
-import { DateTime, Effect, Layer, Schema } from "effect";
+} from "effect-agent/subscription-input";
+import { SubscriptionDriver, SubscriptionIntake, Subscriptions } from "effect-agent/subscriptions";
 import { DurableObjectAlarm, DurableObjectState } from "effect-cf";
 
 import { TEST_DIGESTS } from "./fixtures.ts";

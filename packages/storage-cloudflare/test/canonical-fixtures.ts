@@ -1,5 +1,5 @@
-import { CanonicalBatch, CanonicalRecord, UserInputRecorded } from "@effect-agent/thread/Records";
 import { Schema } from "effect";
+import { CanonicalBatch, CanonicalRecord, UserInputRecorded } from "effect-agent/records";
 
 import { at, id, TEST_DEPLOYMENT, TEST_PRODUCER } from "./harness.ts";
 
@@ -32,4 +32,4 @@ export const batch = (
     records,
   });
 
-import { SubmissionId } from "@effect-agent/core/Identifiers";
+import { SubmissionId } from "effect-agent/identifiers";

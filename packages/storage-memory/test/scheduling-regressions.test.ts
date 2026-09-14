@@ -1,7 +1,10 @@
-import { AgentId, ThreadId, ReceiptId, SubmissionId } from "@effect-agent/core/Identifiers";
-import { MemoryScheduleStoreLive } from "@effect-agent/storage-memory/MemoryScheduleStore";
-import { Receipt } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigests, Digest } from "@effect-agent/thread/Records";
+import { MemoryScheduleStoreLive } from "@effect-agent/storage-memory/memory-schedule-store";
+import { NodeCrypto } from "@effect/platform-node";
+import { describe, expect, it } from "@effect/vitest";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Ref, Schema, Tracer } from "effect";
+import { Receipt } from "effect-agent/durable-agent-runtime";
+import { AgentId, ThreadId, ReceiptId, SubmissionId } from "effect-agent/identifiers";
+import { DefinitionDigests, Digest } from "effect-agent/records";
 import {
   defaultSchedulingLimits,
   ScheduleAuthorizationError,
@@ -15,17 +18,14 @@ import {
   ScheduleStore,
   ScheduleStorageError,
   type ScheduleTimingRequest,
-} from "@effect-agent/thread/Schedule";
+} from "effect-agent/schedule";
 import {
   type ScheduleCreateOptions,
   Scheduling,
   ScheduleDriver,
   ScheduleWakeNoop,
-} from "@effect-agent/thread/Scheduling";
-import { Principal, QueueSequence } from "@effect-agent/thread/SubmissionLedger";
-import { NodeCrypto } from "@effect/platform-node";
-import { describe, expect, it } from "@effect/vitest";
-import { Cause, Deferred, Effect, Exit, Fiber, Layer, Ref, Schema, Tracer } from "effect";
+} from "effect-agent/scheduling";
+import { Principal, QueueSequence } from "effect-agent/submission-ledger";
 import * as TestClock from "effect/testing/TestClock";
 
 const Input = Schema.Struct({ text: Schema.String });

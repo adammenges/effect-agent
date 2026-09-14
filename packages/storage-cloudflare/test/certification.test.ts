@@ -1,22 +1,22 @@
-import { DoStorageFailpoint } from "@effect-agent/storage-cloudflare/DoStorageFailpoint";
-import { submissionLedgerLayer } from "@effect-agent/storage-cloudflare/DoSubmissionLedger";
+import { DoStorageFailpoint } from "@effect-agent/storage-cloudflare/do-storage-failpoint";
+import { submissionLedgerLayer } from "@effect-agent/storage-cloudflare/do-submission-ledger";
 import {
   threadStoreLayer,
   storageConfigLayer,
-} from "@effect-agent/storage-cloudflare/DoThreadStore";
+} from "@effect-agent/storage-cloudflare/do-thread-store";
 import {
   CERTIFICATION_SCENARIOS,
   TIER2_UNREACHED_LOCATIONS,
   certifyDurableAdapters,
   tier2NeverFiredLocations,
-} from "@effect-agent/testing/Certification";
-import { DurableRuntimeFailpointLocation } from "@effect-agent/thread/DurableFailpoint";
-import { CertificationReport } from "@effect-agent/thread/testing/Certification";
-import { submissionLedgerConformanceCases } from "@effect-agent/thread/testing/SubmissionLedgerConformance";
-import { threadStoreConformanceCases } from "@effect-agent/thread/testing/ThreadStoreConformance";
+} from "@effect-agent/testing/certification";
 import { BrowserCrypto } from "@effect/platform-browser";
 import { SqliteClient } from "@effect/sql-sqlite-do";
 import { Effect, Layer, Schema } from "effect";
+import { DurableRuntimeFailpointLocation } from "effect-agent/durable-failpoint";
+import { CertificationReport } from "effect-agent/testing/certification";
+import { submissionLedgerConformanceCases } from "effect-agent/testing/submission-ledger-conformance";
+import { threadStoreConformanceCases } from "effect-agent/testing/thread-store-conformance";
 import { describe, expect, it } from "vite-plus/test";
 
 import { withThreadStorage } from "./harness.ts";

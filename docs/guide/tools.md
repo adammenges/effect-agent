@@ -100,7 +100,7 @@ namespace. Return ranked `Descriptor.id` values. Every ID is validated before li
 unknown or duplicate IDs fail closed. Native tools and each Code Mode alias have separate IDs.
 
 ```ts twoslash
-import * as ToolDiscovery from "effect-agent/ToolDiscovery";
+import { ToolDiscovery } from "effect-agent";
 import { Context, Effect, Schema } from "effect";
 
 class SearchUnavailable extends Schema.TaggedError<SearchUnavailable>()("SearchUnavailable", {
@@ -131,7 +131,7 @@ a fresh Scope per invocation; failure, defect, timeout and interruption close ac
 An existing ordinary readonly search tool can use the same contract: annotate it with
 `ToolExposure.DiscoveryTool` and return a decoded `toolNames` array containing registered native
 names. The runtime validates that selection before recording it. Discovery tools must use the
-`ToolExecutionClass` annotation from `effect-agent/DurableStep` with value `"readonly"`;
+`ToolExecutionClass` annotation from `effect-agent/durable-step` with value `"readonly"`;
 uncertain and orchestration tools have different durable settlement paths and are refused.
 
 ### Select without search {#tool-selection}
@@ -139,8 +139,8 @@ uncertain and orchestration tools have different durable settlement paths and ar
 Host context and workflow state can use the same mechanism directly:
 
 ```ts twoslash
-import { RunToolVisibility, Selection } from "effect-agent/ToolExposure";
-import type { RunOptions } from "effect-agent/RunOptions";
+import { RunToolVisibility, Selection } from "effect-agent/tool-exposure";
+import type { RunOptions } from "effect-agent/run-options";
 import { Effect, Layer } from "effect";
 
 export const options: RunOptions = {
@@ -291,7 +291,7 @@ const options = {
 Use sequential execution for mutating tools whose effects depend on order. Every other batch still
 has a finite concurrency limit.
 
-Durable hosts provide `RunToolScheduling` from `@effect-agent/engine/RunOptions` when constructing
+Durable hosts provide `RunToolScheduling` from `effect-agent/run-options` when constructing
 the runtime. Its `toolRequiresSequential` predicate inserts barriers around those tools while
 independent neighboring calls run concurrently. The runtime captures this host choice across
 replacement attempts; a worker's ambient reference cannot replace it. Ephemeral runs use the same
@@ -299,7 +299,7 @@ reference unless `RunOptions.scheduling` is explicitly supplied.
 
 ## Approve before execution {#approval}
 
-Effect AI's `needsApproval` marks a tool for approval. The capabilities package turns its native
+Effect AI's `needsApproval` marks a tool for approval. Effect Agent turns its native
 request into a typed Effect service with stable run identity, normalized resource targets, a
 bounded preview, expiration, audit, and a deny or unresolved decision.
 
@@ -315,7 +315,7 @@ allowing the outer execution Tool does not grant permission to its inner Tools.
 This policy permits only the `search` tool:
 
 ```ts twoslash
-import { RunToolAuthorization } from "@effect-agent/engine/RunOptions";
+import { RunToolAuthorization } from "effect-agent/run-options";
 import { Effect, Layer } from "effect";
 
 export const searchOnly = RunToolAuthorization.of({
@@ -370,9 +370,9 @@ needs `ChildProcessSpawner`, which `NodeServices.layer` supplies on Node.js. Bot
 stay in the Layer's `R`.
 
 ```ts
-import * as McpClient from "@effect-agent/capabilities/McpClient";
-import { connectMcp, McpConnectionRequest } from "@effect-agent/capabilities/Mcp";
-import { McpHttpTransport } from "@effect-agent/capabilities/McpClient";
+import { McpClient } from "effect-agent";
+import { connectMcp, McpConnectionRequest } from "effect-agent/mcp";
+import { McpHttpTransport } from "effect-agent/mcp-client";
 import { FetchHttpClient } from "effect/unstable/http";
 import { Effect, Layer } from "effect";
 
@@ -427,8 +427,8 @@ supplied LanguageModel and a native hosted search tool. The calling agent can us
 model or provider. Include `WebSearch.tool` in its toolkit, then provide this handler Layer:
 
 ```ts twoslash
-import * as WebSearch from "effect-agent/WebSearch";
-import * as Gateway from "@effect-agent/platform-cloudflare/CloudflareAiGateway";
+import { WebSearch } from "effect-agent";
+import * as Gateway from "@effect-agent/platform-cloudflare/cloudflare-ai-gateway";
 import { OpenAiClient, OpenAiLanguageModel, OpenAiTool } from "@effect/ai-openai";
 import { Layer, Redacted } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";

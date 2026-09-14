@@ -1,12 +1,12 @@
-import { MessageDeliveryStore } from "@effect-agent/thread/MessageDelivery";
-import {
-  makeMessageDeliveryFixture,
-  messageDeliveryStoreConformanceCases,
-} from "@effect-agent/thread/testing/MessageDeliveryStoreConformance";
 import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Layer } from "effect";
+import { MessageDeliveryStore } from "effect-agent/message-delivery";
+import {
+  makeMessageDeliveryFixture,
+  messageDeliveryStoreConformanceCases,
+} from "effect-agent/testing/message-delivery-store-conformance";
 
 import { messageDeliveryStoreLayer } from "../src/SqliteMessageDeliveryStore.ts";
 import { SqliteStorageFailpoint } from "../src/SqliteStorageFailpoint.ts";

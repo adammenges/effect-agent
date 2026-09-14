@@ -1,10 +1,7 @@
-import { Redactor, StructuralRedactorLive } from "@effect-agent/capabilities/Redaction";
-import { SubagentExecutionFailure } from "@effect-agent/capabilities/Subagent";
-import { ThreadId, ToolCallId } from "@effect-agent/core/Identifiers";
 import {
   NodeDurableAgentRuntime,
   type NodeDurableAgentRuntimeOptions,
-} from "@effect-agent/platform-node/NodeDurableAgentRuntime";
+} from "@effect-agent/platform-node/node-durable-agent-runtime";
 import {
   docsCoordinatorConfidentialMarker,
   docsDocumentBodySecret,
@@ -19,15 +16,18 @@ import {
   researchCorpusDocumentIds,
   researchMissionRequest,
   summarizeCallId,
-} from "@effect-agent/testing/DocsResearcher";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import { type CanonicalRecordEnvelope } from "@effect-agent/thread/Records";
-import { childThreadIdFor, runIdForSubmission } from "@effect-agent/thread/RunJournal";
-import { IdempotencyKey } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadRead, ThreadStore } from "@effect-agent/thread/ThreadStore";
+} from "@effect-agent/testing/docs-researcher";
 import { NodeCrypto, NodeFileSystem } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, FileSystem, type PlatformError, Schema, Stream } from "effect";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { ThreadId, ToolCallId } from "effect-agent/identifiers";
+import { type CanonicalRecordEnvelope } from "effect-agent/records";
+import { Redactor, StructuralRedactorLive } from "effect-agent/redaction";
+import { childThreadIdFor, runIdForSubmission } from "effect-agent/run-journal";
+import { SubagentExecutionFailure } from "effect-agent/subagent";
+import { IdempotencyKey } from "effect-agent/submission-ledger";
+import { ThreadRead, ThreadStore } from "effect-agent/thread-store";
 
 // ---------------------------------------------------------------------------
 // Red-team suite: child exfiltration through the durable join.

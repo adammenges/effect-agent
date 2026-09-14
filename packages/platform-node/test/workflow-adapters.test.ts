@@ -1,18 +1,18 @@
 import {
   NodeWorkflowRepairTrigger,
   SqlWorkflowDispatchStore,
-} from "@effect-agent/platform-node/NodeWorkflow";
-import { Receipt } from "@effect-agent/thread/DurableAgentRuntime";
+} from "@effect-agent/platform-node/node-workflow";
 import {
   WorkflowDispatchIntent,
   WorkflowDispatchScan,
   WorkflowDispatchStore,
   WorkflowRepairTrigger,
-} from "@effect-agent/workflow/WorkflowDispatch";
+} from "@effect-agent/workflow/workflow-dispatch";
 import { NodeFileSystem } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Deferred, Effect, Exit, Fiber, Layer, Ref, Schema } from "effect";
+import { Receipt } from "effect-agent/durable-agent-runtime";
 import { TestClock } from "effect/testing";
 import { SqlClient } from "effect/unstable/sql";
 

@@ -1,32 +1,29 @@
-import * as CodeMode from "@effect-agent/capabilities/CodeMode";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId, RunId, TurnId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import * as AgentRuntime from "@effect-agent/engine/AgentRuntime";
-import { ToolExecutionClass } from "@effect-agent/engine/DurableStep";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
+import { inProcessCodeExecutorLayer } from "@effect-agent/testing/code-executor-substitute";
+import { NodeCrypto } from "@effect/platform-node";
+import { expect, layer } from "@effect/vitest";
+import { Cause, Effect, Layer, Logger, Ref, References, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import * as AgentRuntime from "effect-agent/agent-runtime";
+import * as CodeMode from "effect-agent/code-mode";
+import { DurableAgentRuntime, DurableRuntimeConfig } from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpoint } from "effect-agent/durable-failpoint";
+import { ToolExecutionClass } from "effect-agent/durable-step";
+import { IdGenerator } from "effect-agent/id-generator";
+import { ThreadId, RunId, TurnId } from "effect-agent/identifiers";
+import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "effect-agent/records";
 import {
   RunContextPreparationPassthrough,
   toolFailureObserverLayer,
   type ToolFailureObservation,
-} from "@effect-agent/engine/RunOptions";
-import { ThreadHistory } from "@effect-agent/engine/ThreadHistory";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { inProcessCodeExecutorLayer } from "@effect-agent/testing/CodeExecutorSubstitute";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpoint } from "@effect-agent/thread/DurableFailpoint";
-import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadRead, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
-import { NodeCrypto } from "@effect/platform-node";
-import { expect, layer } from "@effect/vitest";
-import { Cause, Effect, Layer, Logger, Ref, References, Schema, Stream } from "effect";
+} from "effect-agent/run-options";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadHistory } from "effect-agent/thread-history";
+import { ThreadRead, ThreadStore } from "effect-agent/thread-store";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { LanguageModel, Model, Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 import {
@@ -36,10 +33,12 @@ import {
   warehouseQueryTool,
 } from "./fixtures/warehouse.ts";
 
+let threadSequence = 0;
+
 const usage = { inputTokens: {}, outputTokens: {} };
 
 const identifiers = Layer.succeed(IdGenerator, {
-  nextThreadId: Effect.succeed(Schema.decodeSync(ThreadId)("thread-cm-e2e")),
+  nextThreadId: Effect.sync(() => Schema.decodeSync(ThreadId)(`thread-cm-e2e-${++threadSequence}`)),
   nextRunId: Effect.succeed(Schema.decodeSync(RunId)("run-cm-e2e")),
   nextTurnId: Effect.succeed(Schema.decodeSync(TurnId)("turn-cm-e2e")),
 });
@@ -176,7 +175,7 @@ const runScenario = (options: { readonly code: string; readonly maxToolCalls: nu
 // suite for the rationale).
 const testLayer = Layer.mergeAll(
   identifiers,
-  ThreadHistory.layerTransient,
+  ThreadHistory.layer,
   RunContextPreparationPassthrough,
 );
 

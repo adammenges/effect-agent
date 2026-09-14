@@ -1,5 +1,6 @@
-import { Digest } from "@effect-agent/thread/Records";
-import { compareScheduleNames } from "@effect-agent/thread/ScheduleTransition";
+import { Clock, Effect, Layer, Ref, Result, Schema } from "effect";
+import { Digest } from "effect-agent/records";
+import { compareScheduleNames } from "effect-agent/schedule-transition";
 import {
   AcceptedEvent,
   DeliveryChange,
@@ -18,7 +19,7 @@ import {
   SubscriptionStore,
   subscriptionDeliveryKeyString,
   subscriptionKeyString,
-} from "@effect-agent/thread/Subscription";
+} from "effect-agent/subscription";
 import {
   sameAcceptedEventIdentity,
   applySubscriptionDeliveryChange,
@@ -26,8 +27,7 @@ import {
   validateEventRetention,
   subscriptionCanSelect,
   subscriptionDeliveryCanSelect,
-} from "@effect-agent/thread/SubscriptionTransition";
-import { Clock, Effect, Layer, Ref, Result, Schema } from "effect";
+} from "effect-agent/subscription-transition";
 
 interface MemorySubscriptionState {
   readonly sequence: number;

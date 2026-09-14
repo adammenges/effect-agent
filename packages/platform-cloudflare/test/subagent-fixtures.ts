@@ -1,12 +1,11 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentPolicy, SubagentRuntime } from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import { DurableWorkerBinding, type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { DefinitionDigests, Digest } from "@effect-agent/thread/Records";
 import { Duration, Effect, Layer, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { DurableWorkerBinding, type ResolvedBinding } from "effect-agent/agent-registration";
+import { DefinitionDigests, Digest } from "effect-agent/records";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentPolicy } from "effect-agent/subagent";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
 import { LanguageModel, Model, Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 import {
@@ -331,7 +330,7 @@ export const siblingCoordinatorDefinition = Agent.make("cf-s2-sibling-coordinato
 // Registered worker Bindings (SUB-023: exact digest registration)
 // ---------------------------------------------------------------------------
 
-const delegationSupport = Layer.mergeAll(SubagentReservationsMemoryLive, IdGenerator.layer);
+const delegationSupport = Layer.mergeAll(SubagentReservationsMemoryLive);
 
 const mapChildFailure = (failure: { readonly _tag: string }) =>
   CfDelegationFailed.make({ childErrorTag: failure._tag });
@@ -347,7 +346,7 @@ export const makeSubagentTestBindings: Effect.Effect<ReadonlyArray<ResolvedBindi
   function* () {
     const childBinding = Agent.withModel(researcherDefinition, researcherModel);
 
-    const delegationLayer = SubagentRuntime.layer(researchDelegation, childBinding, {
+    const delegationLayer = Subagent.layer(researchDelegation, childBinding, {
       mapChildFailure,
     }).pipe(Layer.provide([delegationSupport, bookToolLayer]));
 

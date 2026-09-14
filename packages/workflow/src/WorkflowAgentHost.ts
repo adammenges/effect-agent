@@ -1,23 +1,3 @@
-import { AgentOutputError } from "@effect-agent/core/AgentError";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import { type BindingUnavailable } from "@effect-agent/thread/AgentRegistration";
-import { digestJson } from "@effect-agent/thread/Digest";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-  Receipt,
-  type DurableAwaitFailure,
-  type DurableSubmitAgent,
-  type DurableSubmitFailure,
-  type DurableSubmitOptions,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DeploymentId } from "@effect-agent/thread/Records";
-import {
-  IdempotencyKey,
-  Principal,
-  SubmissionLedger,
-  SubmissionLookupById,
-} from "@effect-agent/thread/SubmissionLedger";
 import {
   Cause,
   Context,
@@ -33,6 +13,26 @@ import {
   Semaphore,
   Stream,
 } from "effect";
+import { AgentOutputError } from "effect-agent/agent-error";
+import { type BindingUnavailable } from "effect-agent/agent-registration";
+import { digestJson } from "effect-agent/digest";
+import {
+  DurableAgentRuntime,
+  DurableRuntimeConfig,
+  Receipt,
+  type DurableAwaitFailure,
+  type DurableSubmitAgent,
+  type DurableSubmitFailure,
+  type DurableSubmitOptions,
+} from "effect-agent/durable-agent-runtime";
+import { ThreadId } from "effect-agent/identifiers";
+import { DeploymentId } from "effect-agent/records";
+import {
+  IdempotencyKey,
+  Principal,
+  SubmissionLedger,
+  SubmissionLookupById,
+} from "effect-agent/submission-ledger";
 import { DurableDeferred, Workflow, WorkflowEngine } from "effect/unstable/workflow";
 
 import { workflowCompletion } from "./internal/completion.ts";

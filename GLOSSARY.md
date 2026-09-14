@@ -46,9 +46,10 @@ One model request and its assistant response, optionally followed by one tool-ca
 begins only after the preceding canonical state is committed.
 
 **Thread**
-An addressable durable or ephemeral ordered history shared across Runs. An Agent executes Runs
-within a Thread and retains their history there. A Thread has exactly one canonical transcript
-projection, derived from its records.
+An identified, ordered conversation shared across Runs, independent of storage or execution
+durability. `Thread` belongs to the main package. Its baseline store retains native messages
+for the application Scope. Persistent history stores completed conversations; durable execution
+adds an append-only journal from which the canonical transcript is projected.
 
 **Submission**  
 An immutable input accepted for durable processing in one Thread lane. Acknowledged
@@ -453,7 +454,7 @@ A location where behavior can be changed without editing the caller.
 A concrete implementation at a Seam.
 
 **Core**  
-The inward domain, authoring, and engine packages that contain no provider, database, transport, or
+The inward domain, authoring, and engine modules that contain no provider, database, transport, or
 platform implementation.
 
 **Reference Application**  

@@ -1,8 +1,6 @@
 ---
-"@effect-agent/engine": minor
-"@effect-agent/capabilities": minor
-"@effect-agent/thread": minor
 "@effect-agent/testing": patch
+"effect-agent": minor
 ---
 
 Provide optional context loading through `RunContextPreparation` for ephemeral and durable runs, and catch its concrete tagged errors directly.

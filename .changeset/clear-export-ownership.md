@@ -1,18 +1,13 @@
 ---
-"@effect-agent/capabilities": minor
-"@effect-agent/core": minor
-"@effect-agent/engine": minor
 "effect-agent": minor
 "@effect-agent/storage-memory": minor
 "@effect-agent/storage-sqlite": minor
 "@effect-agent/storage-cloudflare": minor
 "@effect-agent/platform-node": minor
 "@effect-agent/platform-cloudflare": minor
-"@effect-agent/sandbox": minor
 "@effect-agent/sandbox-local": minor
 "@effect-agent/pr-review": minor
 "@effect-agent/testing": minor
-"@effect-agent/thread": minor
 "@effect-agent/workflow": minor
 ---
 

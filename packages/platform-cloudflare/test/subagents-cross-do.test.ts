@@ -1,15 +1,15 @@
-import { CloudflareThreadClient } from "@effect-agent/platform-cloudflare/CloudflareThreadClient";
-import * as ThreadObject from "@effect-agent/platform-cloudflare/ThreadObject";
+import { CloudflareThreadClient } from "@effect-agent/platform-cloudflare/cloudflare-thread-client";
+import * as ThreadObject from "@effect-agent/platform-cloudflare/thread-object";
 import {
   LedgerRecordChildSettledCall,
   decodePortResponse,
   encodePortRequest,
-} from "@effect-agent/storage-cloudflare/PortProtocol";
-import { type Receipt } from "@effect-agent/thread/DurableAgentRuntime";
-import { type DurableRuntimeFailpointLocation } from "@effect-agent/thread/DurableFailpoint";
-import { AbortCommand, ChildSettledNotification } from "@effect-agent/thread/SubmissionLedger";
+} from "@effect-agent/storage-cloudflare/port-protocol";
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { Effect } from "effect";
+import { type Receipt } from "effect-agent/durable-agent-runtime";
+import { type DurableRuntimeFailpointLocation } from "effect-agent/durable-failpoint";
+import { AbortCommand, ChildSettledNotification } from "effect-agent/submission-ledger";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

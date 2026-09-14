@@ -1,21 +1,21 @@
-import { AgentInputError, AgentOutputError } from "@effect-agent/core/AgentError";
-import { BindingUnavailable } from "@effect-agent/thread/AgentRegistration";
-import { DigestError } from "@effect-agent/thread/Digest";
-import { DurableRuntimeFailpointError } from "@effect-agent/thread/DurableFailpoint";
-import { OperationDenied } from "@effect-agent/thread/OperationAuthorizer";
+import { Effect, Schema } from "effect";
+import { AgentInputError, AgentOutputError } from "effect-agent/agent-error";
+import { BindingUnavailable } from "effect-agent/agent-registration";
+import { DigestError } from "effect-agent/digest";
+import { DurableRuntimeFailpointError } from "effect-agent/durable-failpoint";
+import { OperationDenied } from "effect-agent/operation-authorizer";
 import {
   AdmissionConflict,
   AdmissionPolicyError,
   LedgerError,
   SettlementConflict,
-} from "@effect-agent/thread/SubmissionLedger";
+} from "effect-agent/submission-ledger";
 import {
   AppendConflict,
   FenceRejected,
   ThreadNotMaterialized,
   ThreadStoreError,
-} from "@effect-agent/thread/ThreadStore";
-import { Effect, Schema } from "effect";
+} from "effect-agent/thread-store";
 
 import { WorkflowAdmissionClosed, WorkflowAgentHost } from "./WorkflowAgentHost.ts";
 import { WorkflowDispatchError } from "./WorkflowDispatch.ts";

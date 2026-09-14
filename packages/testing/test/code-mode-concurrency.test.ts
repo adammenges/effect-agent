@@ -1,26 +1,22 @@
-import * as CodeMode from "@effect-agent/capabilities/CodeMode";
-import * as Agent from "@effect-agent/core/Agent";
-import { ThreadId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import * as AgentRuntime from "@effect-agent/engine/AgentRuntime";
-import { RunContextPreparationPassthrough } from "@effect-agent/engine/RunOptions";
-import { ThreadHistory } from "@effect-agent/engine/ThreadHistory";
-import { CodeExecutionLimits } from "@effect-agent/sandbox/CodeExecutor";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { inProcessCodeExecutorLayer } from "@effect-agent/testing/CodeExecutorSubstitute";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import { DurableRuntimeFailpoint } from "@effect-agent/thread/DurableFailpoint";
-import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ToolReconciler } from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
+import { inProcessCodeExecutorLayer } from "@effect-agent/testing/code-executor-substitute";
 import { NodeCrypto } from "@effect/platform-node";
 import { expect, layer } from "@effect/vitest";
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import * as AgentRuntime from "effect-agent/agent-runtime";
+import { CodeExecutionLimits } from "effect-agent/code-executor";
+import * as CodeMode from "effect-agent/code-mode";
+import { DurableAgentRuntime, DurableRuntimeConfig } from "effect-agent/durable-agent-runtime";
+import { DurableRuntimeFailpoint } from "effect-agent/durable-failpoint";
+import { ThreadId } from "effect-agent/identifiers";
+import { DefinitionDigests, DeploymentId, Digest, ProducerId } from "effect-agent/records";
+import { RunContextPreparationPassthrough } from "effect-agent/run-options";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadHistory } from "effect-agent/thread-history";
+import { ToolReconciler } from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { LanguageModel, Model, Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 class WriteFailure extends Schema.TaggedError<WriteFailure>()("WriteFailure", {}) {}
@@ -130,10 +126,9 @@ const scenario = (
   };
 };
 
-layer(
-  Layer.mergeAll(IdGenerator.layer, ThreadHistory.layerTransient, RunContextPreparationPassthrough),
-  { excludeTestServices: true },
-)("Code Mode writes and concurrency", (it) => {
+layer(Layer.mergeAll(ThreadHistory.layer, RunContextPreparationPassthrough), {
+  excludeTestServices: true,
+})("Code Mode writes and concurrency", (it) => {
   it.effect(
     "runs dependencies in order and independent writes with a finite concurrency limit",
     () =>

@@ -1,82 +1,5 @@
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentPolicy } from "@effect-agent/core/AgentPolicy";
-import { ThreadId, SubmissionId, ToolCallId } from "@effect-agent/core/Identifiers";
-import { DiscoveryTool } from "@effect-agent/core/ToolExposure";
-import {
-  DurableStep,
-  DurableStepError,
-  ToolExecutionClass,
-} from "@effect-agent/engine/DurableStep";
-import {
-  RunContextPreparation,
-  RunContextPreparationPassthrough,
-  RunToolAuthorization,
-  RunToolScheduling,
-  toolFailureObserverLayer,
-  type ToolFailureObservation,
-  type RunToolAuthorizationDecision,
-  type RunToolAuthorizationRequest,
-} from "@effect-agent/engine/RunOptions";
-import { RunToolVisibility } from "@effect-agent/engine/ToolExposure";
-import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/MemorySubmissionLedger";
-import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/MemoryThreadStore";
-import { compileRegistrations } from "@effect-agent/thread/AgentRegistration";
-import { digestJson } from "@effect-agent/thread/Digest";
-import {
-  DurableAgentRuntime,
-  DurableRuntimeConfig,
-  type DurableSubmitOptions,
-} from "@effect-agent/thread/DurableAgentRuntime";
-import {
-  DurableRuntimeFailpointError,
-  type DurableRuntimeFailpointLocation,
-} from "@effect-agent/thread/DurableFailpoint";
-import {
-  CanonicalBatch,
-  type CanonicalRecordEnvelope,
-  DefinitionDigestInput,
-  DefinitionDigests,
-  DeploymentId,
-  Digest,
-  ProducerId,
-} from "@effect-agent/thread/Records";
-import {
-  modelResponseInterruptedRecordId,
-  modelResponseRecordId,
-  promptFromCanonicalRecords,
-  runIdForSubmission,
-  toolCallPreparedRecordId,
-  toolStepSettledRecordId,
-} from "@effect-agent/thread/RunJournal";
-import {
-  AbortCommand,
-  IdempotencyKey,
-  Principal,
-  ResolutionAbortSubmission,
-  ResolutionCompletedWithResult,
-  ResolutionNeverHappened,
-  SubmissionLedger,
-  SubmissionLookupById,
-  UnknownResolutionCommand,
-  type SettlementConflict,
-  type UnknownResolutionConflict,
-} from "@effect-agent/thread/SubmissionLedger";
-import { DurableRuntimeFailpointTestControl } from "@effect-agent/thread/testing/DurableFailpointTestControl";
-import {
-  FencedAppendRequest,
-  ThreadRead,
-  ThreadStore,
-  ThreadTailRequest,
-} from "@effect-agent/thread/ThreadStore";
-import {
-  ReconciliationCompleted,
-  ReconciliationSafeToRetry,
-  ReconciliationUncertain,
-  ToolReconciler,
-  type PreparedToolCallEvidence,
-  type ReconciliationDecision,
-} from "@effect-agent/thread/ToolReconciler";
-import { WakeScheduler } from "@effect-agent/thread/WakeScheduler";
+import { MemorySubmissionLedgerLive } from "@effect-agent/storage-memory/memory-submission-ledger";
+import { MemoryThreadStoreLive } from "@effect-agent/storage-memory/memory-thread-store";
 import { NodeCrypto } from "@effect/platform-node";
 import { expect, layer } from "@effect/vitest";
 import {
@@ -94,6 +17,78 @@ import {
   SchemaGetter,
   Stream,
 } from "effect";
+import * as Agent from "effect-agent/agent";
+import { AgentPolicy } from "effect-agent/agent-policy";
+import { compileRegistrations } from "effect-agent/agent-registration";
+import { digestJson } from "effect-agent/digest";
+import {
+  DurableAgentRuntime,
+  DurableRuntimeConfig,
+  type DurableSubmitOptions,
+} from "effect-agent/durable-agent-runtime";
+import {
+  DurableRuntimeFailpointError,
+  type DurableRuntimeFailpointLocation,
+} from "effect-agent/durable-failpoint";
+import { DurableStep, DurableStepError, ToolExecutionClass } from "effect-agent/durable-step";
+import { ThreadId, SubmissionId, ToolCallId } from "effect-agent/identifiers";
+import {
+  CanonicalBatch,
+  type CanonicalRecordEnvelope,
+  DefinitionDigestInput,
+  DefinitionDigests,
+  DeploymentId,
+  Digest,
+  ProducerId,
+} from "effect-agent/records";
+import {
+  modelResponseInterruptedRecordId,
+  modelResponseRecordId,
+  promptFromCanonicalRecords,
+  runIdForSubmission,
+  toolCallPreparedRecordId,
+  toolStepSettledRecordId,
+} from "effect-agent/run-journal";
+import {
+  RunContextPreparation,
+  RunContextPreparationPassthrough,
+  RunToolAuthorization,
+  RunToolScheduling,
+  toolFailureObserverLayer,
+  type ToolFailureObservation,
+  type RunToolAuthorizationDecision,
+  type RunToolAuthorizationRequest,
+} from "effect-agent/run-options";
+import {
+  AbortCommand,
+  IdempotencyKey,
+  Principal,
+  ResolutionAbortSubmission,
+  ResolutionCompletedWithResult,
+  ResolutionNeverHappened,
+  SubmissionLedger,
+  SubmissionLookupById,
+  UnknownResolutionCommand,
+  type SettlementConflict,
+  type UnknownResolutionConflict,
+} from "effect-agent/submission-ledger";
+import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
+import {
+  FencedAppendRequest,
+  ThreadRead,
+  ThreadStore,
+  ThreadTailRequest,
+} from "effect-agent/thread-store";
+import { DiscoveryTool, RunToolVisibility } from "effect-agent/tool-exposure";
+import {
+  ReconciliationCompleted,
+  ReconciliationSafeToRetry,
+  ReconciliationUncertain,
+  ToolReconciler,
+  type PreparedToolCallEvidence,
+  type ReconciliationDecision,
+} from "effect-agent/tool-reconciler";
+import { WakeScheduler } from "effect-agent/wake-scheduler";
 import { Prompt, LanguageModel, Model, Tool, Toolkit, type Response } from "effect/unstable/ai";
 
 const SHA_A = Schema.decodeSync(Digest)("a".repeat(64));

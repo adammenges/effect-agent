@@ -1,11 +1,11 @@
-import { Receipt } from "@effect-agent/thread/DurableAgentRuntime";
-import { AdmissionRequest, SubmissionLedger } from "@effect-agent/thread/SubmissionLedger";
+import { Effect, Schema } from "effect";
+import { Receipt } from "effect-agent/durable-agent-runtime";
+import { AdmissionRequest, SubmissionLedger } from "effect-agent/submission-ledger";
 import {
   AcceptedEvent,
   SubscriptionStore,
   defaultSubscriptionLimits,
-} from "@effect-agent/thread/Subscription";
-import { Effect, Schema } from "effect";
+} from "effect-agent/subscription";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { expect } from "vite-plus/test";
 

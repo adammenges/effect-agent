@@ -1,21 +1,20 @@
-import * as Subagent from "@effect-agent/capabilities/Subagent";
-import { SubagentReservationsMemoryLive } from "@effect-agent/capabilities/SubagentReservations";
-import * as Agent from "@effect-agent/core/Agent";
-import { AgentId, RunId, ThreadId, ToolCallId } from "@effect-agent/core/Identifiers";
-import { IdGenerator } from "@effect-agent/core/IdGenerator";
-import { SubagentGrant } from "@effect-agent/core/SubagentContract";
-import { WorkerError } from "@effect-agent/core/Worker";
-import { MessagingHost } from "@effect-agent/engine/MessagingHost";
-import { SubagentHost } from "@effect-agent/engine/SubagentHost";
-import * as NodeHost from "@effect-agent/platform-node/NodeDurableHost";
-import { DurableAgentRuntime } from "@effect-agent/thread/DurableAgentRuntime";
-import { DefinitionDigestInput } from "@effect-agent/thread/Records";
-import { IdempotencyKey, Principal } from "@effect-agent/thread/SubmissionLedger";
-import { ThreadExportRequest, ThreadStore } from "@effect-agent/thread/ThreadStore";
-import { WorkerHostAuthorizer } from "@effect-agent/thread/WorkerHost";
+import * as NodeHost from "@effect-agent/platform-node/node-durable-host";
 import { NodeFileSystem } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
 import { Context, Deferred, Effect, FileSystem, Layer, Ref, Schema, Stream } from "effect";
+import * as Agent from "effect-agent/agent";
+import { DurableAgentRuntime } from "effect-agent/durable-agent-runtime";
+import { AgentId, RunId, ThreadId, ToolCallId } from "effect-agent/identifiers";
+import { MessagingHost } from "effect-agent/messaging-host";
+import { DefinitionDigestInput } from "effect-agent/records";
+import * as Subagent from "effect-agent/subagent";
+import { SubagentGrant } from "effect-agent/subagent-contract";
+import { SubagentHost } from "effect-agent/subagent-host";
+import { SubagentReservationsMemoryLive } from "effect-agent/subagent-reservations";
+import { IdempotencyKey, Principal } from "effect-agent/submission-ledger";
+import { ThreadExportRequest, ThreadStore } from "effect-agent/thread-store";
+import { WorkerError } from "effect-agent/worker";
+import { WorkerHostAuthorizer } from "effect-agent/worker-host";
 import { LanguageModel, Model, Toolkit, type Prompt, type Response } from "effect/unstable/ai";
 
 const principal = Schema.decodeSync(Principal)("nested-owner");
@@ -232,8 +231,8 @@ it.live(
         const handlers = Layer.mergeAll(
           background.layer,
           scoutBackground.layer,
-          Subagent.SubagentRuntime.layer(scoutDeclaration, scout),
-        ).pipe(Layer.provide([SubagentReservationsMemoryLive, IdGenerator.layer]));
+          Subagent.layer(scoutDeclaration, scout),
+        ).pipe(Layer.provide([SubagentReservationsMemoryLive]));
 
         const context = yield* Layer.build(
           NodeHost.layer(

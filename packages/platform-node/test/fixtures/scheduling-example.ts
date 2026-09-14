@@ -1,10 +1,10 @@
-import { type NodeDurableAgentRuntimeOptions } from "@effect-agent/platform-node/NodeDurableAgentRuntime";
-import { NodeDurableHost } from "@effect-agent/platform-node/NodeDurableHost";
-import { NodeScheduling } from "@effect-agent/platform-node/NodeScheduling";
-import { type ResolvedBinding } from "@effect-agent/thread/AgentRegistration";
-import { type DurableSubmitAgent } from "@effect-agent/thread/DurableAgentRuntime";
-import { type ScheduleCreateOptions, Scheduling } from "@effect-agent/thread/Scheduling";
+import { type NodeDurableAgentRuntimeOptions } from "@effect-agent/platform-node/node-durable-agent-runtime";
+import { NodeDurableHost } from "@effect-agent/platform-node/node-durable-host";
+import { NodeScheduling } from "@effect-agent/platform-node/node-scheduling";
 import { Effect, Layer, type Schema } from "effect";
+import { type ResolvedBinding } from "effect-agent/agent-registration";
+import { type DurableSubmitAgent } from "effect-agent/durable-agent-runtime";
+import { type ScheduleCreateOptions, Scheduling } from "effect-agent/scheduling";
 
 /** The caller supplies registered bindings, their real digests, and an explicit authorizer. */
 export const schedulingRuntimeLayer = (

@@ -26,6 +26,38 @@ tag and advances `action-v1` atomically. Failed or superseded runs leave the
 previous release available. Publication installs no dependencies and runs no
 project code with repository write permission. Package releases remain separate.
 
+## PR check status
+
+Set the same `check-name` for automatic and comment-triggered reviews. In a workflow that
+already authorizes review commands, add `checks: write` to its permissions and these inputs:
+
+```yaml
+check-name: Effect Agent review
+checks-token: ${{ github.token }}
+```
+
+`checks-token` defaults to `github-token`. Passing `github.token` separately lets the reviewer
+keep its existing GitHub App identity without granting that App Checks write permission.
+Omitting `check-name` preserves existing behavior and requires no new permissions.
+
+Each admitted review creates an **in progress** check on the inspected PR head, linked to the
+workflow and then the published review. Manual retries replace the displayed result under the
+same name; completion updates only that attempt's ID. Keep the per-PR workflow concurrency group.
+`@effect-agent review full` starts a new attempt even when automatic reviews are paused.
+
+Complete reviews without unresolved blockers pass. Blockers and incomplete coverage fail;
+a paused, unreviewed commit requires action. Skipped events preserve an existing check or
+report trusted review history when no check exists. Published review outcomes no longer fail
+the workflow job; setup, execution, and check API failures still do.
+
+Cancellation closes the attempt's check when cleanup can run. A push during publication cancels
+only the inspected head's check. Check writes time out after ten seconds and are never retried;
+runner loss or an uncertain write can leave a check in progress until another review replaces it.
+
+For required reviews, configure branch protection to require this check from its publishing app.
+Enabling it does not change branch protection or rewrite old workflow results. A new push after
+the workflow upgrade refreshes the PR's workflow job; later manual reviews update the shared check.
+
 ## Review behavior
 
 The reviewer automatically ignores known binary asset formats, including raster images,
@@ -57,6 +89,8 @@ The host tracks unread diff ranges, validates finding paths and
 RIGHT-side anchors and publishes against the inspected head. A stopped run preserves findings
 recorded before research ended. Preparation failures publish a failure marker. Blocking findings
 request changes and fail the Action after publication; other outcomes remain comments.
+With `check-name` configured, published review outcomes instead determine the shared PR check
+described above.
 
 Reviews with findings include a **Copy all findings** dropdown. Expand it and use the code
 block's copy button to copy every finding from that review, including paths, inline line numbers

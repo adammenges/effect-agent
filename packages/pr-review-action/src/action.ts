@@ -38,11 +38,13 @@ import { type GeneratedContentOmission, omitGeneratedSourceMaps } from "./genera
 import {
   type ChangedFile,
   GitHubApiFailure,
+  GitHubClient,
   isBinaryAssetPath,
   makeExactPatch,
   makeGitHubClient,
   type RepositorySnapshot,
-  type StaleReviewHead,
+  type ReviewCheckCompletion,
+  StaleReviewHead,
 } from "./github.ts";
 import {
   type ReviewCostEstimate,
@@ -67,6 +69,7 @@ import {
 import {
   reviewModeFromCommand,
   selectReview,
+  type ReviewSelection,
   unresolvedChangeRequestCount,
   unresolvedChangeRequests as selectUnresolvedChangeRequests,
 } from "./selection.ts";
@@ -91,6 +94,8 @@ const ACTION_INPUT_BY_CONFIG: Readonly<Record<string, string>> = {
   PR_REVIEW_BASE_COST_USD: "INPUT_BASE-COST-USD",
   PR_REVIEW_GUIDANCE_FILE: "INPUT_GUIDANCE-FILE",
   PR_REVIEW_IGNORE: "INPUT_IGNORE",
+  PR_REVIEW_CHECK_NAME: "INPUT_CHECK-NAME",
+  PR_REVIEW_CHECKS_TOKEN: "INPUT_CHECKS-TOKEN",
 };
 
 /** Prefer local environment configuration, then read the matching GitHub Action input. */
@@ -136,6 +141,88 @@ export class IncrementalScopeUnavailable extends Schema.TaggedError<IncrementalS
     currentMergeBase: Schema.String,
   },
 ) {}
+
+const isReviewResult = Schema.is(
+  Schema.Union([
+    BlockingFindings,
+    UnresolvedChangeRequests,
+    IncompleteReview,
+    ReviewAttemptIncomplete,
+    IncrementalScopeUnavailable,
+  ]),
+);
+
+const reviewCheckCompletion = (
+  exit: Exit.Exit<unknown, unknown>,
+  selection: ReviewSelection,
+  reviewUrl: string | undefined,
+): ReviewCheckCompletion => {
+  const result = (
+    conclusion: ReviewCheckCompletion["conclusion"],
+    title: string,
+    summary = "See the linked review. Request @effect-agent review full to review this commit again.",
+  ): ReviewCheckCompletion => ({
+    status: "completed",
+    conclusion,
+    output: { title, summary },
+    ...(reviewUrl === undefined ? {} : { details_url: reviewUrl }),
+  });
+
+  if (Exit.isFailure(exit)) {
+    if (Cause.hasInterruptsOnly(exit.cause)) {
+      return result(
+        "cancelled",
+        "Review cancelled",
+        "The review was interrupted before it completed. Request another review to retry.",
+      );
+    }
+    if (!Cause.hasDies(exit.cause)) {
+      for (const reason of exit.cause.reasons) {
+        if (!Cause.isFailReason(reason)) continue;
+        const error = reason.error;
+
+        if (isReviewResult(error)) {
+          switch (error._tag) {
+            case "BlockingFindings":
+              return result("failure", `${String(error.count)} blocking finding(s)`);
+            case "UnresolvedChangeRequests":
+              return result(
+                "failure",
+                `${String(error.count)} earlier change request(s) unresolved`,
+              );
+            case "IncompleteReview":
+            case "ReviewAttemptIncomplete":
+              return result("failure", "Review incomplete");
+            case "IncrementalScopeUnavailable":
+              return result("action_required", "Full review required");
+          }
+        }
+        if (Schema.is(StaleReviewHead)(error)) {
+          return result(
+            "cancelled",
+            "Pull request changed during review",
+            "This attempt reviewed an older commit. The new commit needs its own review.",
+          );
+        }
+      }
+    }
+
+    return result(
+      "failure",
+      "Review execution failed",
+      "The review could not finish. See the workflow logs for diagnostics and request another review to retry.",
+    );
+  }
+  if (selection._tag !== "review" && selection.reason !== "head-already-reviewed") {
+    return result("action_required", "Review required");
+  }
+
+  return result(
+    "success",
+    "Review complete",
+    "The reviewed commit has no unresolved blocking findings.",
+  );
+};
 
 export const reviewPublicationFailure = (input: {
   readonly blockingFindings: number;
@@ -728,7 +815,7 @@ const reanchorToFullPullRequest = (
   });
 };
 
-export const reviewActionProgram = Effect.gen(function* () {
+const prepareReview = Effect.gen(function* () {
   const repository = yield* Config.NonEmptyString("GITHUB_REPOSITORY");
 
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
@@ -797,10 +884,21 @@ export const reviewActionProgram = Effect.gen(function* () {
 
   const graphqlUrl = yield* Config.NonEmptyString("GITHUB_GRAPHQL_URL").pipe(Config.option);
 
+  const checkName = yield* Config.schema(
+    Schema.String.check(Schema.isMaxLength(100)),
+    "PR_REVIEW_CHECK_NAME",
+  ).pipe(Config.withDefault(""));
+
+  const checksToken =
+    checkName.length === 0
+      ? undefined
+      : Option.getOrUndefined(yield* Config.Redacted("PR_REVIEW_CHECKS_TOKEN").pipe(Config.option));
+
   const github = yield* makeGitHubClient({
     repository,
     pullRequest: pullRequestNumber,
     token,
+    checksToken,
     apiUrl,
     graphqlUrl: Option.getOrUndefined(graphqlUrl),
   });
@@ -814,7 +912,6 @@ export const reviewActionProgram = Effect.gen(function* () {
   }
 
   const history = yield* github.listReviews;
-  let unresolvedChangeRequests = unresolvedChangeRequestCount({ reviewAuthor, history });
 
   const selection = selectReview({
     mode,
@@ -823,6 +920,46 @@ export const reviewActionProgram = Effect.gen(function* () {
     automaticReviewLimit,
     history,
   });
+
+  return {
+    repository,
+    checkName,
+    github,
+    pull,
+    selection,
+    reviewAuthor,
+    history,
+    modelName,
+    effort,
+    priority,
+    maxCostUsd,
+    baseCostUsd,
+    guidanceFile,
+    ignore,
+  };
+});
+
+const reviewPullRequest = Effect.fn("reviewPullRequest")(function* (
+  prepared: Omit<Exclude<Effect.Success<typeof prepareReview>, void>, "github">,
+  publication: { url?: string },
+) {
+  const github = yield* GitHubClient;
+
+  const {
+    pull,
+    selection,
+    reviewAuthor,
+    history,
+    modelName,
+    effort,
+    priority,
+    maxCostUsd,
+    baseCostUsd,
+    guidanceFile,
+    ignore,
+  } = prepared;
+
+  let unresolvedChangeRequests = unresolvedChangeRequestCount({ reviewAuthor, history });
 
   if (selection._tag === "skip") {
     yield* skip(selection.reason, undefined, unresolvedChangeRequests);
@@ -851,6 +988,8 @@ export const reviewActionProgram = Effect.gen(function* () {
       ),
       comments: [],
     });
+
+    publication.url = reviewUrl;
 
     yield* skip(selection.reason, reviewUrl, unresolvedChangeRequests);
     if (unresolvedChangeRequests > 0) {
@@ -1097,6 +1236,8 @@ export const reviewActionProgram = Effect.gen(function* () {
       { publish: github.publishAttemptMarker, automatic: selection.automatic, failureSummary },
     ).pipe(Effect.catchTag("StaleReviewHead", () => Effect.failCause(attemptExit.cause)));
 
+    publication.url = reviewUrl;
+
     yield* writeOutputs([
       ["skipped", "false"],
       ["reason", "review-failed"],
@@ -1244,6 +1385,8 @@ export const reviewActionProgram = Effect.gen(function* () {
     { publish: github.publishAttemptMarker, automatic: selection.automatic },
   );
 
+  publication.url = reviewUrl;
+
   yield* writeOutputs([
     ["skipped", "false"],
     [
@@ -1284,4 +1427,60 @@ export const reviewActionProgram = Effect.gen(function* () {
   });
 
   if (publicationFailure !== undefined) return yield* publicationFailure;
+});
+
+export const reviewActionProgram = Effect.gen(function* () {
+  const setup = yield* prepareReview;
+
+  if (setup === undefined) return;
+  const { github, ...prepared } = setup;
+  const { repository, checkName, pull, selection } = prepared;
+  const publication: { url?: string } = {};
+
+  const review = reviewPullRequest(prepared, publication).pipe(
+    Effect.provideService(GitHubClient, github),
+  );
+
+  if (checkName.length === 0) return yield* review;
+
+  const identity = { name: checkName, headRevision: pull.headRevision };
+  const existing = selection._tag !== "review" && (yield* github.hasReviewCheck(identity));
+  const runId = yield* Config.schema(Schema.Natural, "GITHUB_RUN_ID").pipe(Config.option);
+
+  const serverUrl = yield* Config.NonEmptyString("GITHUB_SERVER_URL").pipe(
+    Config.withDefault("https://github.com"),
+  );
+
+  const detailsUrl = Option.isSome(runId)
+    ? `${serverUrl}/${repository}/actions/runs/${String(runId.value)}`
+    : undefined;
+
+  // The acquire/release boundary closes the exact attempt on success, failure,
+  // defect, or interruption. Check writes are bounded and are never retried.
+  // Capture the review Exit so a failed completion write cannot be swallowed
+  // while translating a published review result into workflow success.
+  const reviewExit = yield* existing
+    ? Effect.exit(review)
+    : Effect.acquireUseRelease(
+        github.startReviewCheck({ ...identity, detailsUrl }),
+        () => Effect.exit(review),
+        (check, exit) =>
+          github.completeReviewCheck(
+            check,
+            reviewCheckCompletion(
+              Exit.isSuccess(exit) ? exit.value : exit,
+              selection,
+              publication.url,
+            ),
+          ),
+      );
+
+  if (
+    Exit.isFailure(reviewExit) &&
+    !reviewExit.cause.reasons.every(
+      (reason) => Cause.isFailReason(reason) && isReviewResult(reason.error),
+    )
+  ) {
+    return yield* Effect.failCause(reviewExit.cause);
+  }
 });

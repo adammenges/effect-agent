@@ -1,13 +1,55 @@
 import { ReviewFollowUp } from "@effect-agent/pr-review/review";
 import { createTwoFilesPatch } from "diff";
 import type { Redacted } from "effect";
-import { Clock, DateTime, Effect, Encoding, Option, Result, Schema } from "effect";
+import { Clock, Context, DateTime, Effect, Encoding, Option, Result, Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 
 import { unresolvedChangeRequests, type ReviewHistoryItem } from "./selection.ts";
 
 const ShortString = Schema.String.check(Schema.isMaxLength(2_048));
 const Revision = Schema.NonEmptyString.check(Schema.isMaxLength(128));
+
+const CheckName = Schema.NonEmptyString.check(Schema.isMaxLength(100));
+const CheckOutput = Schema.Struct({ title: ShortString, summary: Schema.String });
+const CheckConclusion = Schema.Literals(["success", "failure", "action_required", "cancelled"]);
+
+const CreateCheckWire = Schema.Struct({
+  name: CheckName,
+  head_sha: Revision,
+  external_id: ShortString,
+  status: Schema.Literal("in_progress"),
+  details_url: Schema.optionalKey(ShortString),
+  output: CheckOutput,
+});
+
+const CompleteCheckWire = Schema.Struct({
+  status: Schema.Literal("completed"),
+  conclusion: CheckConclusion,
+  details_url: Schema.optionalKey(ShortString),
+  output: CheckOutput,
+});
+
+const CheckWriteWire = Schema.Union([CreateCheckWire, CompleteCheckWire]);
+
+const CheckRunWire = Schema.Struct({
+  id: Schema.Int.check(Schema.isGreaterThan(0)),
+  name: CheckName,
+  head_sha: Revision,
+  external_id: Schema.NullOr(ShortString),
+});
+
+const CheckRunsWire = Schema.Struct({
+  total_count: Schema.Natural.check(Schema.isLessThanOrEqualTo(100)),
+  check_runs: Schema.Array(CheckRunWire).check(Schema.isMaxLength(100)),
+});
+
+export interface ReviewCheck {
+  readonly id: number;
+  readonly name: string;
+  readonly headRevision: string;
+}
+
+export type ReviewCheckCompletion = typeof CompleteCheckWire.Type;
 
 const PullRequestWire = Schema.Struct({
   number: Schema.Int.check(Schema.isGreaterThan(0)),
@@ -266,6 +308,7 @@ export const makeGitHubClient = Effect.fn("makeGitHubClient")(function* (options
   readonly repository: string;
   readonly pullRequest: number;
   readonly token: Redacted.Redacted<string>;
+  readonly checksToken?: Redacted.Redacted<string> | undefined;
   readonly apiUrl?: string | undefined;
   readonly graphqlUrl?: string | undefined;
 }) {
@@ -277,18 +320,22 @@ export const makeGitHubClient = Effect.fn("makeGitHubClient")(function* (options
   const failure = (operation: string, cause: unknown) =>
     GitHubApiFailure.make({ operation, reason: String(cause).slice(0, 4_096) });
 
-  const request = (value: HttpClientRequest.HttpClientRequest) =>
+  const request = (value: HttpClientRequest.HttpClientRequest, token = options.token) =>
     value.pipe(
       HttpClientRequest.setHeaders({
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "effect-agent-pr-review",
       }),
-      HttpClientRequest.bearerToken(options.token),
+      HttpClientRequest.bearerToken(token),
     );
 
-  const execute = (operation: string, value: HttpClientRequest.HttpClientRequest) =>
-    HttpClient.execute(request(value)).pipe(
+  const execute = (
+    operation: string,
+    value: HttpClientRequest.HttpClientRequest,
+    token = options.token,
+  ) =>
+    HttpClient.execute(request(value, token)).pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.mapError((cause) => failure(operation, cause)),
       Effect.provideService(HttpClient.HttpClient, client),
@@ -308,6 +355,7 @@ export const makeGitHubClient = Effect.fn("makeGitHubClient")(function* (options
     operation: string,
     value: HttpClientRequest.HttpClientRequest,
     schema: S,
+    token = options.token,
   ) {
     const deadline = (yield* Clock.currentTimeMillis) + 90_000;
 
@@ -322,7 +370,7 @@ export const makeGitHubClient = Effect.fn("makeGitHubClient")(function* (options
         });
       }
 
-      const result = yield* client.execute(request(value)).pipe(
+      const result = yield* client.execute(request(value, token)).pipe(
         Effect.flatMap(HttpClientResponse.filterStatusOk),
         Effect.flatMap((response) => response.json),
         Effect.timeout(Math.min(15_000, remaining)),
@@ -930,6 +978,112 @@ export const makeGitHubClient = Effect.fn("makeGitHubClient")(function* (options
     );
   });
 
+  const checksUrl = `${apiUrl}/repos/${options.repository}/check-runs`;
+  const checksToken = options.checksToken ?? options.token;
+  const checkExternalId = `effect-agent-pr-review:v1:${String(options.pullRequest)}`;
+
+  const validateCheck = (wire: typeof CheckRunWire.Type, check: Omit<ReviewCheck, "id">) =>
+    wire.name === check.name &&
+    wire.head_sha === check.headRevision &&
+    wire.external_id === checkExternalId;
+
+  /** Skipped events preserve an existing attempt instead of replacing its result. */
+  const hasReviewCheck = Effect.fn("GitHubClient.hasReviewCheck")(function* (
+    check: Omit<ReviewCheck, "id">,
+  ) {
+    const result = yield* readJson(
+      "list review checks",
+      HttpClientRequest.get(
+        `${apiUrl}/repos/${options.repository}/commits/${encodeURIComponent(check.headRevision)}/check-runs`,
+      ).pipe(
+        HttpClientRequest.setUrlParams({
+          check_name: check.name,
+          filter: "latest",
+          per_page: "100",
+        }),
+      ),
+      CheckRunsWire,
+      checksToken,
+    );
+
+    return result.check_runs.some((wire) => validateCheck(wire, check));
+  });
+
+  const writeReviewCheck = Effect.fn("GitHubClient.writeReviewCheck")(function* (
+    operation: string,
+    request: HttpClientRequest.HttpClientRequest,
+    input: typeof CheckWriteWire.Type,
+  ) {
+    const body = yield* Schema.encodeEffect(CheckWriteWire)(input).pipe(
+      Effect.mapError((cause) => failure(operation, cause)),
+    );
+
+    const value = yield* HttpClientRequest.bodyJson(request, body).pipe(
+      Effect.mapError((cause) => failure(operation, cause)),
+    );
+
+    return yield* execute(operation, value, checksToken).pipe(
+      Effect.flatMap(decode(CheckRunWire, operation)),
+      Effect.timeoutOrElse({
+        duration: "10 seconds",
+        orElse: () =>
+          GitHubApiFailure.make({
+            operation,
+            reason: "GitHub check write timed out; its outcome is unknown",
+          }),
+      }),
+    );
+  });
+
+  // Every attempt creates its own run under one stable name. Completion only
+  // updates the returned ID, so an older attempt cannot overwrite a newer one.
+  const startReviewCheck = Effect.fn("GitHubClient.startReviewCheck")(function* (
+    input: Omit<ReviewCheck, "id"> & { readonly detailsUrl?: string | undefined },
+  ) {
+    const wire = yield* writeReviewCheck("start review check", HttpClientRequest.post(checksUrl), {
+      name: input.name,
+      head_sha: input.headRevision,
+      external_id: checkExternalId,
+      status: "in_progress",
+      ...(input.detailsUrl === undefined ? {} : { details_url: input.detailsUrl }),
+      output: {
+        title: "Review in progress",
+        summary: "Reviewing the pull request at the attached commit.",
+      },
+    });
+
+    if (!validateCheck(wire, input)) {
+      return yield* GitHubApiFailure.make({
+        operation: "start review check",
+        reason: "Check response does not match the requested review identity",
+      });
+    }
+
+    return {
+      id: wire.id,
+      name: input.name,
+      headRevision: input.headRevision,
+    } satisfies ReviewCheck;
+  });
+
+  const completeReviewCheck = Effect.fn("GitHubClient.completeReviewCheck")(function* (
+    check: ReviewCheck,
+    completion: ReviewCheckCompletion,
+  ) {
+    const wire = yield* writeReviewCheck(
+      "complete review check",
+      HttpClientRequest.patch(`${checksUrl}/${String(check.id)}`),
+      completion,
+    );
+
+    if (wire.id !== check.id || !validateCheck(wire, check)) {
+      return yield* GitHubApiFailure.make({
+        operation: "complete review check",
+        reason: "Check response does not match the completed review identity",
+      });
+    }
+  });
+
   return {
     getPullRequest,
     listFiles,
@@ -943,5 +1097,14 @@ export const makeGitHubClient = Effect.fn("makeGitHubClient")(function* (options
     acknowledgeComment,
     publishReview,
     publishAttemptMarker,
+    hasReviewCheck,
+    startReviewCheck,
+    completeReviewCheck,
   } as const;
 });
+
+/** GitHub review operations, provided by the Action composition root. */
+export class GitHubClient extends Context.Service<
+  GitHubClient,
+  Effect.Success<ReturnType<typeof makeGitHubClient>>
+>()("@effect-agent/pr-review-action/GitHubClient") {}

@@ -7,6 +7,7 @@
       "devDependencies": {
         "@changesets/changelog-github": "0.7.0",
         "@changesets/cli": "2.31.0",
+        "@effect-agent/ai-typesafe": "workspace:*",
         "@effect-agent/platform-cloudflare": "workspace:*",
         "@effect-agent/platform-node": "workspace:*",
         "@effect-agent/sandbox-local": "workspace:*",
@@ -89,6 +90,19 @@
         "typescript": "catalog:",
         "vite": "catalog:",
         "vite-plus": "catalog:",
+      },
+    },
+    "packages/ai-typesafe": {
+      "name": "@effect-agent/ai-typesafe",
+      "version": "0.1.0-beta.99",
+      "devDependencies": {
+        "@effect/vitest": "catalog:",
+        "effect": "catalog:",
+        "typescript": "catalog:",
+        "vite-plus": "catalog:",
+      },
+      "peerDependencies": {
+        "effect": "^4.0.0-rc.115",
       },
     },
     "packages/effect-agent": {
@@ -693,6 +707,8 @@
     "@docsearch/js": ["@docsearch/js@4.7.0", "", {}, "sha512-x5lCqu1tetgsJFkjQ6VSocbHldsRkGEgwg5N98Vx21sq/V5wcmj4u226PY9k+TEpIgQ772zlYbPLTPicWyGnpA=="],
 
     "@docsearch/sidepanel-js": ["@docsearch/sidepanel-js@4.7.0", "", {}, "sha512-A8r34jCU8kcIk2viECEn2msA28ojUF1BLi/3v5OWWc5G2N3jOuuumBXoeYjfr8dA0UxgFSy5R2bt12dnFJQSyA=="],
+
+    "@effect-agent/ai-typesafe": ["@effect-agent/ai-typesafe@workspace:packages/ai-typesafe"],
 
     "@effect-agent/example-browser-run-worker-proof": ["@effect-agent/example-browser-run-worker-proof@workspace:tooling/browser-run-worker-proof"],
 

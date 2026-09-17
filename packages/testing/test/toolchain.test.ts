@@ -21,6 +21,7 @@ import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { ChildProcess } from "effect/unstable/process";
 
 import { compareBundles } from "../../../scripts/bundle-size.ts";
+import { checkReleasePackages } from "../../../scripts/check-release-packages.ts";
 import {
   command as releaseCommand,
   PublishManifest,
@@ -885,7 +886,7 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
     { timeout: 30_000 },
   );
 
-  it.effect("runs ordinary CI on release PRs and uses App-authored Changesets updates", () =>
+  it.effect("retains required release gates and App-authored Changesets updates", () =>
     Effect.gen(function* () {
       const ci = yield* readWorkflow(".github/workflows/ci.yml");
       const release = yield* readWorkflow(".github/workflows/release.yml");
@@ -906,6 +907,58 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
         "./node_modules/.bin/vp run --no-cache release:checked-publish",
       );
       expect(release.jobs.release?.permissions?.["id-token"]).toBe("write");
+      expect(release.on).toEqual({
+        workflow_run: { workflows: ["CI"], types: ["completed"], branches: ["main"] },
+      });
+      expect(checkout?.with?.ref).toBe("${{ github.sha }}");
+    }),
+  );
+
+  it.effect("isolates release proof credentials and makes ready require candidate validation", () =>
+    Effect.gen(function* () {
+      const ci = yield* readWorkflow(".github/workflows/ci.yml");
+      const proof = ci.jobs["release-proof"];
+
+      expect(proof?.permissions).toEqual({
+        contents: "read",
+        actions: "read",
+        "pull-requests": "read",
+      });
+      expect(workflowStep(ci, "release-proof", "Check out trusted base verifier")?.with).toEqual({
+        ref: "${{ github.event.pull_request.base.sha }}",
+        "persist-credentials": false,
+      });
+      const script = workflowStep(ci, "ready", "Verify all required gates passed")?.run;
+
+      if (script === undefined) return yield* Effect.die("Missing ready fan-in");
+      // Run the actual shell gate. A skipped build or failed retained package check
+      // must fail ready even when the proof succeeded.
+      for (const [fast, proof, checks, tests, build, succeeds] of [
+        ["true", "success", "skipped", "skipped", "success", true],
+        ["false", "failure", "success", "success", "success", true],
+        ["", "skipped", "success", "success", "success", true],
+        ["true", "success", "skipped", "skipped", "failure", false],
+        ["true", "success", "skipped", "skipped", "skipped", false],
+        ["true", "failure", "skipped", "skipped", "success", false],
+        ["false", "success", "skipped", "skipped", "success", false],
+        ["false", "success", "success", "failure", "success", false],
+      ] as const) {
+        const exit = yield* Effect.exit(
+          runFixtureCommand(repositoryRoot, "env", [
+            `RELEASE_FAST=${fast}`,
+            `PROOF_RESULT=${proof}`,
+            `CHECKS_RESULT=${checks}`,
+            `TEST_RESULT=${tests}`,
+            `BUILD_RESULT=${build}`,
+            "bash",
+            "-e",
+            "-c",
+            script,
+          ]),
+        );
+
+        expect(Exit.isSuccess(exit)).toBe(succeeds);
+      }
     }),
   );
 
@@ -1144,6 +1197,9 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
             });
           }),
         );
+        yield* assertRestored;
+
+        yield* checkReleasePackages(root);
         yield* assertRestored;
 
         // Exercise Changesets itself without registry writes. This catches its

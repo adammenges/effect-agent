@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Option, Predicate, Schema, Stream } from "effect";
+import { MessageDeliveryStore, MessageDeliveryError } from "effect-agent/message-delivery";
 import {
   AdmissionIndeterminate,
   AdmissionConflict,
@@ -23,6 +24,8 @@ import {
 } from "effect-agent/thread-store";
 
 import {
+  MessageDeliveryListCall,
+  MessageDeliveryListResult,
   boundPortDiagnostic,
   decodePortRequest,
   decodePortResponse,
@@ -45,6 +48,8 @@ import {
   PortSucceeded,
   StoreAppendCall,
   StoreAppendResult,
+  StoreCountPeerMessagesCall,
+  StoreCountPeerMessagesResult,
   StoreExportCall,
   StoreExportResult,
   StoreInspectTailCall,
@@ -305,7 +310,7 @@ const makeRoutedLedgerServices = Effect.fn("DoPortRouting.makeRoutedLedgerServic
                 operation,
                 message: boundPortDiagnostic(
                   `The Thread Object owning ${target} answered ${operation} with the ` +
-                    `out-of-contract failure ${failure._tag}: ${failure.message}`,
+                    `out-of-contract failure ${failure._tag}`,
                 ),
                 cause: failure,
               }),
@@ -763,7 +768,7 @@ const makeRoutedStoreServices = Effect.fn("DoPortRouting.makeRoutedStoreServices
                 operation,
                 message: boundPortDiagnostic(
                   `The Thread Object owning ${target} answered ${operation} with the ` +
-                    `out-of-contract failure ${failure._tag}: ${failure.message}`,
+                    `out-of-contract failure ${failure._tag}`,
                 ),
                 cause: failure,
               }),
@@ -792,6 +797,19 @@ const makeRoutedStoreServices = Effect.fn("DoPortRouting.makeRoutedStoreServices
   };
 
   const routed = ThreadStore.of({
+    countPeerMessages: (request) =>
+      options.ownsThread(request.threadId)
+        ? local.countPeerMessages === undefined
+          ? Effect.fail(crossThreadStoreError("peer count unavailable", request.threadId))
+          : local.countPeerMessages(request)
+        : foreignStoreCall(
+            "thread countPeerMessages",
+            request.threadId,
+            StoreCountPeerMessagesCall.make({ request }),
+            StoreCountPeerMessagesResult,
+            ThreadNotMaterialized,
+          ).pipe(Effect.map((reply) => reply.count)),
+
     materialize: (request) =>
       options.ownsThread(request.threadId)
         ? local.materialize(request)
@@ -920,6 +938,48 @@ export const routedThreadStoreLayer = (
 ): Layer.Layer<ThreadStore, never, ThreadStore | ThreadPortTransport> =>
   Layer.effectContext(makeRoutedStoreServices(options));
 
+/** Route the existing owner-scoped list; delivery mutations remain source local. */
+export const routedMessageDeliveryStoreLayer = (options: RoutedPortOptions) =>
+  Layer.effect(
+    MessageDeliveryStore,
+    Effect.gen(function* () {
+      const local = yield* MessageDeliveryStore;
+      const call = makeTransportCall(yield* ThreadPortTransport);
+
+      return MessageDeliveryStore.of({
+        ...local,
+        list: (request) =>
+          options.ownsThread(request.ownerThreadId)
+            ? local.list(request)
+            : call(request.ownerThreadId, MessageDeliveryListCall.make({ request })).pipe(
+                Effect.mapError(() =>
+                  MessageDeliveryError.make({
+                    reason: "storage",
+                    operation: "route delivery list",
+                  }),
+                ),
+                Effect.flatMap((response) => {
+                  if (
+                    response._tag === "PortSucceeded" &&
+                    response.result._tag === "MessageDeliveryListResult"
+                  )
+                    return Effect.succeed(response.result.page);
+
+                  return Effect.fail(
+                    response._tag === "PortFailed" &&
+                      response.failure._tag === "MessageDeliveryError"
+                      ? response.failure
+                      : MessageDeliveryError.make({
+                          reason: "storage",
+                          operation: "route delivery list",
+                        }),
+                  );
+                }),
+              ),
+      });
+    }),
+  );
+
 // ---------------------------------------------------------------------------
 // Owner-side execution
 // ---------------------------------------------------------------------------
@@ -943,8 +1003,28 @@ const capture = <Failure extends PortFailure>(
  */
 export const executePortRequest = Effect.fn("DoPortRouting.executePortRequest")(function* (
   request: PortRequest,
-): Effect.fn.Return<PortResponse, never, SubmissionLedger | ThreadStore> {
+): Effect.fn.Return<PortResponse, never, SubmissionLedger | ThreadStore | MessageDeliveryStore> {
   switch (request._tag) {
+    case "MessageDeliveryList": {
+      const store = yield* MessageDeliveryStore;
+
+      return yield* capture(
+        store
+          .list(request.request)
+          .pipe(Effect.map((page) => MessageDeliveryListResult.make({ page }))),
+      );
+    }
+    case "StoreCountPeerMessages": {
+      const store = yield* ThreadStore;
+
+      return yield* capture(
+        store.countPeerMessages === undefined
+          ? Effect.fail(crossThreadStoreError("native read unavailable", request.request.threadId))
+          : store
+              .countPeerMessages(request.request)
+              .pipe(Effect.map((count) => StoreCountPeerMessagesResult.make({ count }))),
+      );
+    }
     case "LedgerAdmit": {
       const ledger = yield* SubmissionLedger;
 
@@ -1068,7 +1148,9 @@ const encodedProtocolFailure = (message: string): unknown => ({
  * transport never has to interpret exceptions as protocol answers.
  */
 export const handleEncodedPortRequest = Effect.fn("DoPortRouting.handleEncodedPortRequest")(
-  function* (encoded: unknown): Effect.fn.Return<unknown, never, SubmissionLedger | ThreadStore> {
+  function* (
+    encoded: unknown,
+  ): Effect.fn.Return<unknown, never, SubmissionLedger | ThreadStore | MessageDeliveryStore> {
     const response = yield* decodePortRequest(encoded).pipe(
       Effect.flatMap(executePortRequest),
       Effect.catch((error) =>

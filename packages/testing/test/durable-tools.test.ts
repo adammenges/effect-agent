@@ -4,6 +4,7 @@ import { NodeCrypto } from "@effect/platform-node";
 import { expect, layer } from "@effect/vitest";
 import {
   Cause,
+  DateTime,
   Context,
   Deferred,
   Duration,
@@ -31,9 +32,14 @@ import {
   type DurableRuntimeFailpointLocation,
 } from "effect-agent/durable-failpoint";
 import { DurableStep, DurableStepError, ToolExecutionClass } from "effect-agent/durable-step";
-import { ThreadId, SubmissionId, ToolCallId } from "effect-agent/identifiers";
+import { ThreadId, SubmissionId, ToolCallId, RunId } from "effect-agent/identifiers";
 import {
   CanonicalBatch,
+  RecordEnvelope,
+  RecordId,
+  BatchId,
+  ToolCallPrepared,
+  UserInputRecorded,
   type CanonicalRecordEnvelope,
   DefinitionDigestInput,
   DefinitionDigests,
@@ -68,12 +74,14 @@ import {
   ResolutionNeverHappened,
   SubmissionLedger,
   SubmissionLookupById,
+  submissionInputRecordId,
   UnknownResolutionCommand,
   type SettlementConflict,
   type UnknownResolutionConflict,
 } from "effect-agent/submission-ledger";
 import { DurableRuntimeFailpointTestControl } from "effect-agent/testing/durable-failpoint-test-control";
 import {
+  readOutstanding,
   FencedAppendRequest,
   ThreadRead,
   ThreadStore,
@@ -2367,6 +2375,132 @@ layer(testLayer)("DUR P5 durable Tools (prepared/settled, reconciliation, unknow
       }),
   );
 
+  for (const scenario of ["wrong-run", "late-input"] as const) {
+    it.effect(`bounded reads reject ${scenario} canonical ownership evidence`, () =>
+      Effect.gen(function* () {
+        const runtime = yield* DurableAgentRuntime;
+        const store = yield* ThreadStore;
+        const scripted = yield* makeScriptedModel(() => finalParts('{"answer":"unused"}'));
+        const agent = Agent.withModel(bookDefinition, scripted.model);
+
+        const receipt = yield* runtime.submit(
+          agent,
+          { question: "original" },
+          submitOptions(`native-${scenario}`, "original"),
+        );
+
+        const runId =
+          scenario === "wrong-run"
+            ? Schema.decodeSync(RunId)("run:another-admission")
+            : runIdForSubmission(receipt.submissionId);
+
+        const envelope = (id: string, payload: RecordEnvelope["payload"]) =>
+          RecordEnvelope.make({
+            recordId: Schema.decodeSync(RecordId)(id),
+            family: "thread",
+            schemaVersion: 1,
+            createdAt: DateTime.makeUnsafe(1),
+            deploymentId: Schema.decodeSync(DeploymentId)("test"),
+            payload,
+          });
+
+        const input = envelope(
+          submissionInputRecordId(receipt.submissionId),
+          UserInputRecorded.make({
+            kind: "user",
+            runId,
+            submissionId: receipt.submissionId,
+            input: { question: "original" },
+          }),
+        );
+
+        const append = Effect.fnUntraced(function* (
+          id: string,
+          records: readonly [RecordEnvelope, ...Array<RecordEnvelope>],
+        ) {
+          const tail = yield* store.inspectTail(
+            ThreadTailRequest.make({ threadId: receipt.threadId }),
+          );
+
+          yield* store.append(
+            FencedAppendRequest.make({
+              threadId: receipt.threadId,
+              producerEpoch: tail.producerEpoch,
+              expectedTailSequence: tail.tailSequence,
+              expectedTailDigest: tail.tailDigest,
+              batch: CanonicalBatch.make({
+                batchId: Schema.decodeSync(BatchId)(id),
+                producerId: Schema.decodeSync(ProducerId)("test"),
+                records,
+              }),
+            }),
+          );
+        });
+
+        yield* append("prepared", [
+          envelope(
+            toolCallPreparedRecordId(runId, 1, decodeToolCallId("call")),
+            ToolCallPrepared.make({
+              runId,
+              turnId: Schema.decodeSync(ToolCallPrepared.fields.turnId)("turn"),
+              turn: 1,
+              toolCallId: decodeToolCallId("call"),
+              toolName: "book",
+              parameters: {},
+              parametersDigest: SHA_A,
+            }),
+          ),
+          ...(scenario === "wrong-run" ? [input] : []),
+        ]);
+        let injected = false;
+
+        const racedStore = ThreadStore.of({
+          ...store,
+          read: (request) =>
+            Stream.unwrap(
+              Effect.gen(function* () {
+                if (
+                  scenario === "late-input" &&
+                  "selection" in request &&
+                  request.selection._tag === "RunInput" &&
+                  !injected
+                ) {
+                  injected = true;
+                  yield* append("late-input", [input]).pipe(Effect.orDie);
+                }
+
+                return store.read(request);
+              }),
+            ),
+        });
+
+        expect(
+          failureTag(
+            yield* Effect.exit(
+              readOutstanding({ threadId: receipt.threadId, limit: 1 }).pipe(
+                Effect.provideService(ThreadStore, racedStore),
+              ),
+            ),
+          ),
+        ).toBe("ThreadStoreError");
+        if (scenario === "late-input") {
+          expect(injected).toBe(true);
+          expect(
+            (yield* readOutstanding({ threadId: receipt.threadId, limit: 1 })).operations,
+          ).toHaveLength(1);
+          yield* runtime.abort(
+            AbortCommand.make({
+              submissionId: receipt.submissionId,
+              author: "test",
+              reason: "retire the proof fixture",
+            }),
+          );
+          yield* runtime.recoverSubmission(receipt.submissionId);
+        }
+      }),
+    );
+  }
+
   it.effect("a canonical settlement beats open tool calls: abort records the uncertainty", () =>
     Effect.gen(function* () {
       yield* resetReconciler;
@@ -2441,6 +2575,11 @@ layer(testLayer)("DUR P5 durable Tools (prepared/settled, reconciliation, unknow
       const after = yield* runtime.runRecovery;
 
       expect(after.find((entry) => entry.submissionId === receipt.submissionId)).toBeUndefined();
+      expect(
+        (yield* readOutstanding({ threadId: receipt.threadId, limit: 1 })).operations.map(
+          (operation) => operation.state,
+        ),
+      ).toEqual(["unknown"]);
     }),
   );
 

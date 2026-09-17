@@ -9456,6 +9456,16 @@ const make = Effect.fn("DurableAgentRuntime.make")(function* (
       });
     }
 
+    if (found.value.state === "settled")
+      yield* workerRuntime.completeInput(found.value).pipe(
+        Effect.mapError((cause) =>
+          LedgerError.make({
+            operation: "recoverSubmission",
+            message: "Worker completion repair failed",
+            cause,
+          }),
+        ),
+      );
     const history = yield* readRecoveryHistory(found.value.threadId, [submissionId]);
 
     if (history.materialized && found.value.workerAdmission?.origin.reporting?.mode === "standard")

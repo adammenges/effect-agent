@@ -258,7 +258,7 @@ export const makeSqlMessageDeliveryStore = Effect.fn("SqlMessageDeliveryStore.ma
 
       const rows = yield* query(
         "list",
-        sql`SELECT owner_thread_id, message_id, version, state, deadline_at_millis, record_json FROM effect_agent_message_deliveries WHERE owner_thread_id = ${input.ownerThreadId} ${input.after === undefined ? sql`` : sql`AND message_id > ${input.after}`} ORDER BY message_id LIMIT ${input.limit + 1}`,
+        sql`SELECT owner_thread_id, message_id, version, state, deadline_at_millis, record_json FROM effect_agent_message_deliveries WHERE owner_thread_id = ${input.ownerThreadId} ${input.after === undefined ? sql`` : sql`AND message_id > ${input.after}`} ${input.pendingOnly ? sql`AND state NOT IN ('processed', 'refused')` : sql``} ORDER BY message_id LIMIT ${input.limit + 1}`,
       );
 
       const records = yield* decodeRows(rows);
@@ -299,4 +299,11 @@ export const makeSqlMessageDeliveryStore = Effect.fn("SqlMessageDeliveryStore.ma
       return decoded[0]?.deadline ?? null;
     }),
   });
+});
+
+/** Add the pending-only index within the adapter's format transaction. */
+export const createMessageDeliveryPendingIndex = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  yield* sql`CREATE INDEX effect_agent_message_deliveries_pending ON effect_agent_message_deliveries(owner_thread_id, message_id) WHERE state NOT IN ('processed', 'refused')`;
 });

@@ -1,4 +1,9 @@
 import { Schema } from "effect";
+import {
+  MessageDeliveryError,
+  MessageDeliveryPageRequest,
+  MessageDeliveryPage,
+} from "effect-agent/message-delivery";
 import { CanonicalRecordEnvelope } from "effect-agent/records";
 import {
   AbortCommand,
@@ -22,10 +27,11 @@ import {
   AppendConflict,
   AppendResult,
   ThreadExport,
+  ThreadPeerCountRequest,
   ThreadExportRequest,
   ThreadMaterialization,
   ThreadNotMaterialized,
-  ThreadRead,
+  ThreadReadRequest,
   ThreadStoreError,
   ThreadTail,
   ThreadTailRequest,
@@ -149,7 +155,7 @@ export class StoreAppendCall extends Schema.TaggedClass<StoreAppendCall>(
 export class StoreReadPageCall extends Schema.TaggedClass<StoreReadPageCall>(
   "@effect-agent/storage-cloudflare/StoreReadPageCall",
 )("StoreReadPage", {
-  request: ThreadRead,
+  request: ThreadReadRequest,
 }) {}
 
 /** Routed `ThreadStore.inspectTail` against the owning Object. */
@@ -166,8 +172,19 @@ export class StoreExportCall extends Schema.TaggedClass<StoreExportCall>(
   request: ThreadExportRequest,
 }) {}
 
+export class StoreCountPeerMessagesCall extends Schema.TaggedClass<StoreCountPeerMessagesCall>()(
+  "StoreCountPeerMessages",
+  { request: ThreadPeerCountRequest },
+) {}
+
+export class MessageDeliveryListCall extends Schema.TaggedClass<MessageDeliveryListCall>()(
+  "MessageDeliveryList",
+  { request: MessageDeliveryPageRequest },
+) {}
+
 /** Every request that may cross a Durable Object boundary — the CLOSED route-capable subset. */
 export const PortRequest = Schema.Union([
+  MessageDeliveryListCall,
   LedgerAdmitCall,
   LedgerMarkReadyCall,
   LedgerLookupCall,
@@ -179,6 +196,7 @@ export const PortRequest = Schema.Union([
   StoreReadPageCall,
   StoreInspectTailCall,
   StoreExportCall,
+  StoreCountPeerMessagesCall,
 ]);
 
 export type PortRequest = typeof PortRequest.Type;
@@ -254,8 +272,19 @@ export class StoreExportResult extends Schema.TaggedClass<StoreExportResult>(
   export: ThreadExport,
 }) {}
 
+export class StoreCountPeerMessagesResult extends Schema.TaggedClass<StoreCountPeerMessagesResult>()(
+  "StoreCountPeerMessagesResult",
+  { count: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 1000 })) },
+) {}
+
+export class MessageDeliveryListResult extends Schema.TaggedClass<MessageDeliveryListResult>()(
+  "MessageDeliveryListResult",
+  { page: MessageDeliveryPage },
+) {}
+
 /** Every successful routed result. Callers narrow by the tag their request implies. */
 export const PortResult = Schema.Union([
+  MessageDeliveryListResult,
   LedgerAdmitResult,
   LedgerMarkReadyResult,
   LedgerLookupResult,
@@ -267,6 +296,7 @@ export const PortResult = Schema.Union([
   StoreReadPageResult,
   StoreInspectTailResult,
   StoreExportResult,
+  StoreCountPeerMessagesResult,
 ]);
 
 export type PortResult = typeof PortResult.Type;
@@ -281,6 +311,7 @@ export type PortResult = typeof PortResult.Type;
  * thread ports declare, so a routed caller observes identical error tags and fields.
  */
 export const PortFailure = Schema.Union([
+  MessageDeliveryError,
   AdmissionConflict,
   AdmissionPolicyError,
   SettlementConflict,

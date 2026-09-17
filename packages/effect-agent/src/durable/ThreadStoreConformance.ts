@@ -1,6 +1,23 @@
 import { Effect, DateTime, Option, Schema, Stream } from "effect";
 
-import { ThreadId, RunId, SubmissionId } from "../core/Identifiers.ts";
+import { AgentPolicy } from "../core/AgentPolicy.ts";
+import {
+  ThreadId,
+  RunId,
+  SubmissionId,
+  ToolCallId,
+  TurnId,
+  AgentId,
+  DelegationId,
+  ReceiptId,
+  SettlementId,
+} from "../core/Identifiers.ts";
+import { IdempotencyKey } from "../core/Receipt.ts";
+import {
+  SubagentDelegationCaps,
+  SubagentGrant,
+  SubagentReservationAmounts,
+} from "../core/SubagentContract.ts";
 import { EMPTY_TAIL_DIGEST } from "./Digest.ts";
 import type { Digest } from "./Records.ts";
 import {
@@ -13,6 +30,14 @@ import {
   RecordEnvelope,
   RecordId,
   UserInputRecorded,
+  ToolCallPrepared,
+  ToolCallUnknown,
+  ToolCallResolved,
+  ToolCallSettled,
+  WorkerInputRequested,
+  WorkerInputCompleted,
+  SubtreeBudgetReserved,
+  PeerMessagePrepared,
 } from "./Records.ts";
 import {
   type AppendResult,
@@ -25,6 +50,9 @@ import {
   ThreadObservation,
   ThreadRead,
   ThreadStore,
+  getRecord,
+  getRunInput,
+  readWorkerState,
   ThreadTailRequest,
   FencedAppendRequest,
   FenceRejected,
@@ -690,11 +718,429 @@ const notMaterializedOperations = conformanceCase(
     }),
 );
 
+const selectedOutstanding = Effect.fnUntraced(function* (threadId: ThreadId) {
+  const store = yield* ThreadStore;
+  const tail = yield* store.inspectTail(ThreadTailRequest.make({ threadId }));
+
+  return yield* Stream.runCollect(
+    store.read({
+      threadId,
+      page: { limit: 1024 },
+      selection: {
+        _tag: "Outstanding",
+        expectedTailSequence: tail.tailSequence,
+        expectedTailDigest: tail.tailDigest,
+      },
+    }),
+  );
+});
+
+const nativeOutstandingReads = conformanceCase(
+  "native reads retain uncertainty until canonical result and preserve exact input identities",
+  ({ ensure, expectFailure }) =>
+    Effect.gen(function* () {
+      const threadId = decodeThreadId("conformance-native-outstanding");
+
+      yield* materialize(threadId, EPOCH_ONE);
+
+      let tail = yield* append(
+        threadId,
+        batch("native-input", [record("native-input", "original")]),
+      );
+
+      const toolCallId = Schema.decodeSync(ToolCallId)("native-call");
+
+      const prepared = ToolCallPrepared.make({
+        runId: CONFORMANCE_RUN,
+        turnId: Schema.decodeSync(TurnId)("native-turn"),
+        turn: 1,
+        toolCallId,
+        toolName: "write",
+        parameters: { original: true },
+        parametersDigest: EMPTY_TAIL_DIGEST,
+        executionKind: "orchestration",
+        executionClass: "uncertain",
+      });
+
+      const envelope = (id: string, payload: RecordEnvelope["payload"]) =>
+        RecordEnvelope.make({ ...record(id, "unused"), payload });
+
+      tail = yield* append(
+        threadId,
+        batch("native-prepared", [envelope("native-prepared", prepared)]),
+        tail,
+      );
+      const store = yield* ThreadStore;
+
+      const selected = {
+        threadId,
+        page: { limit: 1 },
+        selection: {
+          _tag: "Outstanding" as const,
+          expectedTailSequence: tail.lastSequence,
+          expectedTailDigest: tail.tailDigest,
+        },
+      };
+
+      yield* expectFailure(
+        "Old decoder must reject a selected read",
+        Schema.decodeUnknownEffect(ThreadRead)(selected),
+      );
+      yield* expectFailure(
+        "Digest mismatch must reject a selected read",
+        Stream.runCollect(
+          store.read({
+            ...selected,
+            selection: { ...selected.selection, expectedTailDigest: EMPTY_TAIL_DIGEST },
+          }),
+        ),
+      );
+      const first = yield* selectedOutstanding(threadId);
+
+      yield* ensure(
+        first.length === 1 &&
+          first[0]?.record.payload._tag === "ToolCallPrepared" &&
+          first[0].record.payload.executionKind === "orchestration",
+        "A current orchestration preparation is not an unknown outcome",
+      );
+      tail = yield* append(
+        threadId,
+        batch("native-unknown", [
+          envelope(
+            "native-unknown",
+            ToolCallUnknown.make({
+              runId: CONFORMANCE_RUN,
+              turn: 1,
+              toolCallId,
+              toolName: "write",
+              reason: "ownership lost",
+            }),
+          ),
+        ]),
+        tail,
+      );
+      tail = yield* append(
+        threadId,
+        batch("native-permission", [
+          envelope(
+            "native-permission",
+            ToolCallResolved.make({
+              runId: CONFORMANCE_RUN,
+              toolCallId,
+              resolution: "safe-retry",
+              author: "operator",
+              reason: "supplier supports same key",
+            }),
+          ),
+        ]),
+        tail,
+      );
+      yield* expectFailure(
+        "An append that changed outstanding flags invalidates the captured page",
+        Stream.runCollect(store.read(selected)),
+      );
+      const unknown = yield* selectedOutstanding(threadId);
+
+      yield* ensure(
+        unknown.length === 1 && unknown[0]?.record.payload._tag === "ToolCallUnknown",
+        "A resolution permission is not a recorded external result",
+      );
+
+      const exact = yield* getRecord({
+        threadId,
+        recordId: decodeRecordId("native-prepared"),
+      });
+
+      const input = yield* getRunInput({ threadId, runId: CONFORMANCE_RUN });
+
+      yield* ensure(
+        Option.isSome(exact) &&
+          exact.value.record.payload._tag === "ToolCallPrepared" &&
+          Option.isSome(input) &&
+          input.value.record.recordId === "native-input",
+        "Exact lookups retain original preparation and host input",
+      );
+      tail = yield* append(
+        threadId,
+        batch("later-preparation", [envelope("later-preparation", prepared)]),
+        tail,
+      );
+      const retained = yield* selectedOutstanding(threadId);
+
+      yield* ensure(
+        retained.length === 2 &&
+          retained[0]?.record.payload._tag === "ToolCallUnknown" &&
+          retained[1]?.record.payload._tag === "ToolCallPrepared",
+        "A later preparation never overwrites older uncertainty",
+      );
+
+      const currentSelection = {
+        ...selected,
+        selection: {
+          ...selected.selection,
+          expectedTailSequence: tail.lastSequence,
+          expectedTailDigest: tail.tailDigest,
+        },
+      };
+
+      const sparsePage = yield* Stream.runCollect(store.read(currentSelection));
+
+      const sparseNext = yield* Stream.runCollect(
+        store.read({
+          ...currentSelection,
+          page: { limit: 1, afterSequence: sparsePage[0]!.sequence },
+        }),
+      );
+
+      yield* ensure(
+        sparsePage[0]?.record.payload._tag === "ToolCallUnknown" &&
+          sparseNext[0]?.record.payload._tag === "ToolCallPrepared",
+        "Selection pages use sparse canonical sequence without skipping current records",
+      );
+      yield* append(
+        threadId,
+        batch("native-result", [
+          envelope(
+            "native-result",
+            ToolCallSettled.make({
+              runId: CONFORMANCE_RUN,
+              toolCallId,
+              toolName: "write",
+              result: { receipt: "supplier-receipt" },
+              isFailure: false,
+            }),
+          ),
+        ]),
+        tail,
+      );
+      yield* ensure(
+        (yield* selectedOutstanding(threadId)).length === 0,
+        "Only canonical result retires the uncertain call",
+      );
+      const missingThread = decodeThreadId("native-missing");
+
+      const missing = yield* expectFailure(
+        "reading unmaterialized native state",
+        selectedOutstanding(missingThread),
+      );
+
+      yield* ensure(
+        isThreadNotMaterialized(missing),
+        "Missing storage is never an empty inventory",
+      );
+    }),
+);
+
+const nativeAmbiguousOwnership = conformanceCase(
+  "native Run input lookup fails closed on ambiguous original input",
+  ({ expectFailure }) =>
+    Effect.gen(function* () {
+      const threadId = decodeThreadId("ambiguous-native-run");
+
+      yield* materialize(threadId, EPOCH_ONE);
+      yield* append(
+        threadId,
+        batch("inputs", [record("input-1", "first"), record("input-2", "second")]),
+      );
+      yield* expectFailure(
+        "ambiguous original Run input",
+        getRunInput({ threadId, runId: CONFORMANCE_RUN }),
+      );
+    }),
+);
+
+const nativeWorkerAccounting = conformanceCase(
+  "native worker accounting retains lifetime reservations without conversation history",
+  ({ ensure, expectFailure }) =>
+    Effect.gen(function* () {
+      const threadId = decodeThreadId("native-worker-accounting");
+      const store = yield* ThreadStore;
+
+      yield* materialize(threadId, EPOCH_ONE);
+      const workerThreadId = decodeThreadId("worker");
+      const agentId = Schema.decodeSync(AgentId)("agent");
+
+      const origin = {
+        worker: {
+          schemaVersion: 1 as const,
+          delegationId: Schema.decodeSync(DelegationId)("child"),
+          targetAgentId: agentId,
+          threadId: workerThreadId,
+        },
+        source: { _tag: "programmatic" as const, agentId, threadId },
+        targetDigests: {
+          agent: EMPTY_TAIL_DIGEST,
+          model: EMPTY_TAIL_DIGEST,
+          tools: EMPTY_TAIL_DIGEST,
+        },
+        policy: AgentPolicy.make({
+          maxTurns: 1,
+          maxToolCalls: 1,
+          maxDuration: "1 second",
+          toolConcurrency: 1,
+        }),
+        budget: {
+          caps: SubagentDelegationCaps.make({}),
+          allocation: SubagentReservationAmounts.make({
+            turns: 1,
+            toolCalls: 1,
+            durationMillis: 1000,
+            inputTokens: 0,
+            outputTokens: 0,
+            costMicrousd: 0,
+            resultBytes: 0,
+          }),
+        },
+        grant: SubagentGrant.make({ allowedToolNames: [], maxDepth: 1 }),
+        depth: 1,
+        firstMessageId: Schema.decodeSync(IdempotencyKey)("message-0"),
+        createdAtMillis: 0,
+        expiresAtMillis: 1000,
+      };
+
+      const envelope = (id: string, payload: RecordEnvelope["payload"]) =>
+        RecordEnvelope.make({ ...record(id, "unused"), payload });
+
+      const completed = (messageId: IdempotencyKey, verified: boolean) =>
+        WorkerInputCompleted.make({
+          messageId,
+          workerThreadId,
+          submissionId: CONFORMANCE_SUBMISSION,
+          receiptId: Schema.decodeSync(ReceiptId)("receipt"),
+          settlementId: Schema.decodeSync(SettlementId)("settlement"),
+          completedAtMillis: 1,
+          ...(verified ? { effectsResolved: true as const } : {}),
+        });
+
+      const requested = WorkerInputRequested.make({
+        admission: { origin, messageId: origin.firstMessageId, parameters: {}, createdAtMillis: 0 },
+        inputDigest: EMPTY_TAIL_DIGEST,
+      });
+
+      let tail = yield* append(
+        threadId,
+        batch("legacy", [
+          envelope("requested", requested),
+          envelope("legacy-completion", completed(origin.firstMessageId, false)),
+        ]),
+      );
+
+      yield* expectFailure(
+        "Legacy acknowledgements remain explicitly incomplete",
+        selectedOutstanding(threadId),
+      );
+      tail = yield* append(
+        threadId,
+        batch("verified", [envelope("verified", completed(origin.firstMessageId, true))]),
+        tail,
+      );
+      yield* ensure(
+        (yield* selectedOutstanding(threadId)).length === 0 &&
+          Option.isSome(yield* getRecord({ threadId, recordId: decodeRecordId("requested") })),
+        "Proven completion retires the input while retaining its canonical reservation",
+      );
+      // Cross the recovery horizon with irrelevant conversation records. Native worker
+      // accounting must return the same families and scope, while capturing the full CAS tail.
+      for (let base = 0; base < 4097; base += 256) {
+        const makeInput = (n: number) =>
+          envelope(
+            `history-${n}`,
+            UserInputRecorded.make({ kind: "steering", input: `message-${n}` }),
+          );
+
+        tail = yield* append(
+          threadId,
+          batch(`history-${base}`, [
+            makeInput(base),
+            ...Array.from({ length: Math.min(255, 4096 - base) }, (_, offset) =>
+              makeInput(base + offset + 1),
+            ),
+          ]),
+          tail,
+        );
+      }
+
+      const budgetRow = (id: string, sourceSubmissionId: SubmissionId) =>
+        envelope(
+          id,
+          SubtreeBudgetReserved.make({
+            reservationId: id,
+            sourceSubmissionId,
+            childThreadId: workerThreadId,
+            lifetime: "background",
+            depth: 1,
+            policy: origin.policy,
+            budget: origin.budget,
+            grant: origin.grant,
+          }),
+        );
+
+      tail = yield* append(
+        threadId,
+        batch("scoped-budgets", [
+          budgetRow("selected", CONFORMANCE_SUBMISSION),
+          budgetRow("old-run", Schema.decodeSync(SubmissionId)("old-run")),
+        ]),
+        tail,
+      );
+      yield* ensure(
+        (yield* store.countPeerMessages!({ threadId, limit: 1 })) === 0,
+        "Conversation history does not count as peer sends",
+      );
+
+      const peerProof = (n: number) =>
+        envelope(
+          `peer-${n}`,
+          PeerMessagePrepared.make({
+            messageId: Schema.decodeSync(IdempotencyKey)(`peer-${n}`),
+            encodedEnvelope: {},
+            sourcePrincipal: Schema.decodeSync(PeerMessagePrepared.fields.sourcePrincipal)("owner"),
+            operation: "send",
+            deadlineAtMillis: 1000,
+          }),
+        );
+
+      tail = yield* append(threadId, batch("peer-proofs", [peerProof(0), peerProof(1)]), tail);
+      yield* ensure(
+        (yield* store.countPeerMessages!({ threadId, limit: 1 })) === 1 &&
+          (yield* store.countPeerMessages!({ threadId, limit: 1000 })) === 2,
+        "Peer count saturates at the requested capacity without returning payloads",
+      );
+
+      yield* expectFailure(
+        "Worker accounting cannot return a partial authorization snapshot",
+        readWorkerState({ threadId, sourceSubmissionId: CONFORMANCE_SUBMISSION, limit: 3 }),
+      );
+
+      const accounting = yield* readWorkerState({
+        threadId,
+        sourceSubmissionId: CONFORMANCE_SUBMISSION,
+        limit: 4,
+      });
+
+      yield* ensure(
+        accounting.records.length === 4 &&
+          accounting.records
+            .filter(({ record }) => record.payload._tag === "SubtreeBudgetReserved")
+            .map(({ record }) => record.recordId)
+            .join() === "selected",
+        "Worker state excludes conversation and another Run's accounting, retaining completed lifetime reservations",
+      );
+      yield* ensure(
+        accounting.tailSequence === tail.lastSequence && accounting.tailDigest === tail.tailDigest,
+        "The accounting snapshot carries the full canonical CAS tail",
+      );
+    }),
+);
+
 /**
  * The shared, adapter-parameterized ThreadStore contract suite (STORE-010). Every
  * durable adapter test suite must execute each case against its own store provisioning.
  */
 export const threadStoreConformanceCases: ReadonlyArray<ThreadStoreConformanceCase> = [
+  nativeOutstandingReads,
+  nativeAmbiguousOwnership,
+  nativeWorkerAccounting,
   atomicBatchVisibility,
   idempotentReplay,
   tailConflict,

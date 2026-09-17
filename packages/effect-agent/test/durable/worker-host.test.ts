@@ -71,6 +71,9 @@ import {
   SubtreeBudgetReserved,
   ThreadCreated,
   UserInputRecorded,
+  WorkerInputRequested,
+  ToolCallPrepared,
+  ToolCallUnknown,
   type CanonicalRecordPayload,
 } from "../../src/durable/Records.ts";
 import {
@@ -195,6 +198,7 @@ const harness = Effect.fn("workerHostHarness")(function* (
 ) {
   const now = yield* Clock.currentTimeMillis;
   const logs = new Map<ThreadId, Array<CanonicalRecordEnvelope>>();
+  const reads = { exported: 0, paged: 0, worker: 0, exact: 0 };
   const deliveries = new Map<string, MessageDeliveryRecord>();
   const submissions = new Map<SubmissionId, SubmissionSnapshot>();
   const settlements = new Map<SubmissionId, Settlement>();
@@ -315,15 +319,50 @@ const harness = Effect.fn("workerHostHarness")(function* (
         ),
     }),
     Effect.provideService(ThreadStore, {
-      read: ({ threadId, afterSequence = 0, limit }) =>
-        Stream.fromIterable(
-          (logs.get(threadId) ?? [])
-            .filter((entry) => entry.sequence > afterSequence)
-            .slice(0, limit),
-        ),
+      read: (request) =>
+        Stream.suspend(() => {
+          const all = logs.get(request.threadId) ?? [];
+          const selection = "selection" in request ? request.selection : undefined;
+          let records = all;
+
+          if (selection?._tag === "RecordId") {
+            records = all.filter((entry) => entry.record.recordId === selection.recordId);
+            reads.exact++;
+          } else if (selection?._tag === "WorkerState") {
+            records = all.filter(({ record: { payload } }) =>
+              payload._tag === "SubtreeBudgetReserved"
+                ? payload.sourceSubmissionId === selection.sourceSubmissionId
+                : payload._tag === "SubagentJoined"
+                  ? payload.runId === `run:${selection.sourceSubmissionId}`
+                  : [
+                      "ThreadCreated",
+                      "WorkerOriginRecorded",
+                      "SubagentLineageRecorded",
+                      "WorkerInputRequested",
+                      "WorkerInputCompleted",
+                    ].includes(payload._tag),
+            );
+            reads.worker += records.length;
+          } else if (selection !== undefined)
+            return Stream.die("Worker fixture only reads exact identities and accounting");
+          const page = "selection" in request ? request.page : request;
+
+          return Stream.fromIterable(
+            records
+              .filter((entry) => entry.sequence > (page.afterSequence ?? 0))
+              .slice(0, page.limit)
+              .map((entry) => {
+                if (selection === undefined) reads.paged++;
+
+                return entry;
+              }),
+          );
+        }),
       export: ({ threadId }) =>
         Effect.suspend(() => {
           const records = logs.get(threadId);
+
+          reads.exported += records?.length ?? 0;
 
           return records === undefined
             ? ThreadNotMaterialized.make({ threadId })
@@ -612,6 +651,7 @@ const harness = Effect.fn("workerHostHarness")(function* (
 
   return {
     runtime,
+    reads,
     updates: runtimes.updates,
     host,
     deliveries,
@@ -636,6 +676,145 @@ const harness = Effect.fn("workerHostHarness")(function* (
 });
 
 layer(NodeCrypto.layer)((it) => {
+  it.effect("refuses a first reservation whose embedded worker or first message differs", () =>
+    Effect.gen(function* () {
+      for (const mismatch of ["worker", "message"] as const) {
+        const h = yield* harness();
+        const started = yield* h.host.start(request(`origin-${mismatch}`));
+        const history = h.logs.get(sourceId)!;
+
+        h.logs.set(
+          sourceId,
+          history.map((entry) => {
+            const payload = entry.record.payload;
+
+            if (payload._tag !== "WorkerInputRequested") return entry;
+
+            return {
+              ...entry,
+              record: {
+                ...entry.record,
+                payload: WorkerInputRequested.make({
+                  ...payload,
+                  admission: {
+                    ...payload.admission,
+                    ...(mismatch === "message"
+                      ? { messageId: Schema.decodeSync(IdempotencyKey)("wrong-first") }
+                      : {}),
+                    origin: {
+                      ...payload.admission.origin,
+                      worker:
+                        mismatch === "worker"
+                          ? { ...payload.admission.origin.worker, threadId: sourceId }
+                          : payload.admission.origin.worker,
+                    },
+                  },
+                }),
+              },
+            };
+          }),
+        );
+
+        const failure = yield* h.host
+          .followUp({
+            worker: started.worker,
+            target,
+            idempotencyKey: Schema.decodeSync(IdempotencyKey)("followup"),
+            encodedInput: { text: "next" },
+            encodedParameters: {},
+          })
+          .pipe(Effect.flip);
+
+        expect(failure.reason).toBe("worker-mismatch");
+      }
+    }),
+  );
+
+  it.effect(
+    "worker start and follow-up exclude irrelevant conversation history from admission reads",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* harness({ limits: { maxPendingInputsPerWorker: 2 } });
+
+        // Cross the ordinary recovery horizon; admission must still read only native authority/accounting.
+        for (let i = 0; i < 4097; i++)
+          h.push(
+            sourceId,
+            UserInputRecorded.make({ kind: "follow-up", input: `history-${i}` }),
+            `history-${i}`,
+          );
+        const initial = request("bounded-start");
+
+        yield* h.host.context;
+        yield* h.host.resolveTargetPolicy({ target, encodedInput: initial.encodedInput });
+        const started = yield* h.host.start(initial);
+
+        const followUp = yield* h.host.followUp({
+          worker: started.worker,
+          target,
+          idempotencyKey: Schema.decodeSync(IdempotencyKey)("bounded-followup"),
+          encodedInput: { text: "followup" },
+          encodedParameters: {},
+        });
+
+        expect(followUp.threadId).toBe(started.worker.threadId);
+        expect(yield* h.host.start(initial)).toEqual(started);
+        expect(h.reads.exported).toBe(0);
+        expect(h.reads.paged).toBeLessThan(32);
+        expect(h.reads.worker).toBeLessThan(64);
+      }),
+  );
+
+  it.effect("keeps terminal uncertain inputs current while allowing their native report", () =>
+    Effect.gen(function* () {
+      const h = yield* harness({
+        sourceReports: [reportWith(() => Effect.succeed({ encodedInput: "supplier status" }))],
+      });
+
+      const initial = request("uncertain-worker");
+      const first = yield* h.host.start(initial);
+      const runId = Schema.decodeSync(RunId)(`run:${first.receipt.submissionId}`);
+      const toolCallId = Schema.decodeSync(ToolCallId)("external-action");
+
+      h.push(
+        first.worker.threadId,
+        ToolCallPrepared.make({
+          runId,
+          turnId: Schema.decodeSync(ToolCallPrepared.fields.turnId)("turn"),
+          turn: 1,
+          toolCallId,
+          toolName: "supplier",
+          parameters: { original: true },
+          parametersDigest: digest,
+        }),
+        "prepared-action",
+      );
+      h.push(
+        first.worker.threadId,
+        ToolCallUnknown.make({
+          runId,
+          turn: 1,
+          toolCallId,
+          toolName: "supplier",
+          reason: "lost reply",
+        }),
+        "unknown-action",
+      );
+      yield* h.settle(first.receipt, "reported result");
+      expect(
+        h.logs
+          .get(sourceId)!
+          .filter(({ record }) => record.payload._tag === "WorkerInputCompleted"),
+      ).toEqual([]);
+      expect(yield* h.host.start(initial)).toEqual(first);
+      expect(
+        [...h.deliveries.values()].some(
+          (entry) => entry.key.ownerThreadId === first.worker.threadId,
+        ),
+      ).toBe(true);
+    }),
+  );
+
   it.effect("distinguishes transient worker pressure from permanent input exhaustion", () =>
     Effect.gen(function* () {
       const h = yield* harness({ limits: { maxInputsPerWorker: 1, maxActiveWorkersPerSource: 1 } });
@@ -1969,6 +2148,28 @@ layer(NodeCrypto.layer)((it) => {
 
         yield* h.runtime.reserveSubtree(builder.worker.threadId, attached);
         yield* h.runtime.reserveSubtree(builder.worker.threadId, attached);
+
+        const canonical = h.logs.get(builder.worker.threadId)!;
+        const header = canonical[0]!;
+
+        h.logs.set(builder.worker.threadId, [
+          {
+            ...header,
+            record: {
+              ...header.record,
+              payload: UserInputRecorded.make({ kind: "follow-up", input: "malformed-prefix" }),
+            },
+          },
+          ...canonical.map((record) => ({
+            ...record,
+            sequence: Schema.decodeSync(CanonicalSequence)(record.sequence + 1),
+          })),
+        ]);
+        expect(
+          (yield* h.runtime.reserveSubtree(builder.worker.threadId, attached).pipe(Effect.flip))
+            .reason,
+        ).toBe("not-found");
+        h.logs.set(builder.worker.threadId, canonical);
 
         const modelHost = (receipt: Receipt) =>
           h.runtime.facet(

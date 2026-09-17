@@ -163,16 +163,20 @@ export type MessageDeliveryChange = typeof MessageDeliveryChange.Type;
 
 export const MessageDeliveryPageRequest = Schema.Struct({
   ownerThreadId: ThreadId,
-  limit: Positive.check(Schema.isLessThanOrEqualTo(100)),
+  limit: Positive.check(Schema.isLessThanOrEqualTo(4096)),
   after: Schema.optionalKey(IdempotencyKey),
+  /** Native pending index, including accepted, future-due and parked obligations. */
+  pendingOnly: Schema.optionalKey(Schema.Boolean),
 });
 
 export type MessageDeliveryPageRequest = typeof MessageDeliveryPageRequest.Type;
 
-export interface MessageDeliveryPage {
-  readonly items: ReadonlyArray<MessageDeliveryRecord>;
-  readonly next: IdempotencyKey | null;
-}
+export const MessageDeliveryPage = Schema.Struct({
+  items: Schema.Array(MessageDeliveryRecord),
+  next: Schema.NullOr(IdempotencyKey),
+});
+
+export type MessageDeliveryPage = typeof MessageDeliveryPage.Type;
 
 /**
  * Trusted host port, independent of either Thread's active Submission. List/get require an owner.
@@ -208,6 +212,53 @@ export class MessageDeliveryStore extends Context.Service<
     ) => Effect.Effect<number | null, MessageDeliveryError>;
   }
 >()("@effect-agent/thread/MessageDeliveryStore") {}
+
+/**
+ * Read current source-owned obligations without acquiring a runtime or scanning completed history.
+ * A retained receipt is native accepted-admission evidence, not proof of destination materialization.
+ * Shipped worker admission reserves the source input before returning that receipt. Policy can
+ * therefore leave accepted worker discovery to canonical outstanding inputs; a no-receipt action
+ * delivery remains uncertain, including when parked or due in the future.
+ */
+export const readPending = Effect.fn("MessageDelivery.readPending")(function* (
+  request: Pick<MessageDeliveryPageRequest, "ownerThreadId" | "limit">,
+) {
+  const store = yield* MessageDeliveryStore;
+
+  const input = yield* validateMessageDelivery(
+    MessageDeliveryPageRequest,
+    {
+      ownerThreadId: request.ownerThreadId,
+      limit: request.limit,
+      pendingOnly: true,
+    },
+    "read-pending",
+  );
+
+  const page = yield* validateMessageDelivery(
+    MessageDeliveryPage,
+    yield* store.list(input),
+    "read-pending result",
+  );
+
+  if (page.next !== null || page.items.length > input.limit)
+    return yield* MessageDeliveryError.make({ reason: "capacity", operation: "read-pending" });
+  const records = page.items;
+
+  if (
+    records.some(
+      (record) =>
+        record.key.ownerThreadId !== input.ownerThreadId || !messageDeliveryUsesCapacity(record),
+    ) ||
+    new Set(records.map((record) => record.key.messageId)).size !== records.length
+  )
+    return yield* MessageDeliveryError.make({
+      reason: "corrupt",
+      operation: "read-pending result",
+    });
+
+  return records;
+});
 
 export const messageDeliveryKeyString = (key: MessageDeliveryKey): string =>
   JSON.stringify([key.ownerThreadId, key.messageId]);

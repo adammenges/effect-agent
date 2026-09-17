@@ -21,8 +21,10 @@ import {
   type BatchId,
   type Digest,
 } from "effect-agent/records";
+import { runIdForSubmission } from "effect-agent/run-journal";
 import {
   type ThreadCheckpoint,
+  ThreadPeerCountRequest,
   AppendConflict,
   AppendResult,
   CheckpointRejected,
@@ -31,7 +33,7 @@ import {
   ThreadMaterialization,
   ThreadNotMaterialized,
   ThreadObservation,
-  ThreadRead,
+  ThreadReadRequest,
   ThreadStore,
   type ThreadCheckpoints,
   ThreadStoreError,
@@ -61,6 +63,12 @@ interface StoredBatch {
 }
 
 interface StoredThread {
+  readonly peerCount: number;
+  readonly unverifiedWorkerInputs: ReadonlySet<string>;
+  readonly workerRecords: ReadonlyMap<string, ReadonlyArray<CanonicalRecordEnvelope>>;
+  readonly byId: ReadonlyMap<string, CanonicalRecordEnvelope>;
+  readonly runInputs: ReadonlyMap<string, CanonicalRecordEnvelope | null>;
+  readonly outstanding: ReadonlyMap<string, ReadonlyArray<CanonicalRecordEnvelope>>;
   readonly producerEpoch: ProducerEpoch;
   readonly tailSequence: CanonicalSequence;
   readonly tailDigest: Digest;
@@ -234,6 +242,12 @@ const makeThreadStore = Effect.gen(function* () {
             producerEpoch: request.producerEpoch,
             tailSequence: ZERO_CANONICAL_SEQUENCE,
             tailDigest: EMPTY_TAIL_DIGEST,
+            unverifiedWorkerInputs: new Set(),
+            byId: new Map(),
+            workerRecords: new Map(),
+            peerCount: 0,
+            runInputs: new Map(),
+            outstanding: new Map(),
             records: [],
             recordIds: new Set(),
             batches: new Map(),
@@ -400,8 +414,81 @@ const makeThreadStore = Effect.gen(function* () {
             tailDigests.set(lastSequence, digest);
             const threads = new Map(current.threads);
 
+            const unverifiedWorkerInputs = new Set(thread.unverifiedWorkerInputs);
+            let peerCount = thread.peerCount;
+            const workerRecords = new Map(thread.workerRecords);
+            const byId = new Map(thread.byId);
+            const runInputs = new Map(thread.runInputs);
+            const outstanding = new Map(thread.outstanding);
+
+            for (const entry of records) {
+              byId.set(entry.record.recordId, entry);
+              const payload = entry.record.payload;
+
+              if (payload._tag === "PeerMessagePrepared") peerCount++;
+
+              const workerKey =
+                payload._tag === "SubtreeBudgetReserved"
+                  ? `subtree:${payload.sourceSubmissionId ?? ""}`
+                  : payload._tag === "SubagentJoined"
+                    ? `joined:${payload.runId}`
+                    : [
+                          "ThreadCreated",
+                          "WorkerOriginRecorded",
+                          "SubagentLineageRecorded",
+                          "WorkerInputRequested",
+                          "WorkerInputCompleted",
+                        ].includes(payload._tag)
+                      ? "worker"
+                      : undefined;
+
+              if (workerKey !== undefined)
+                workerRecords.set(workerKey, [...(workerRecords.get(workerKey) ?? []), entry]);
+
+              if (
+                payload._tag === "UserInputRecorded" &&
+                payload.kind === "user" &&
+                payload.runId !== undefined
+              )
+                runInputs.set(payload.runId, runInputs.has(payload.runId) ? null : entry);
+              if (
+                payload._tag === "ToolCallPrepared" ||
+                payload._tag === "ToolCallUnknown" ||
+                payload._tag === "ToolCallSettled"
+              ) {
+                const key = JSON.stringify([payload.runId, payload.toolCallId]);
+
+                if (payload._tag === "ToolCallSettled") outstanding.delete(key);
+                else
+                  outstanding.set(key, [
+                    ...(outstanding.get(key) ?? []).filter(
+                      (prior) =>
+                        payload._tag !== "ToolCallUnknown" ||
+                        prior.record.payload._tag !== "ToolCallPrepared",
+                    ),
+                    entry,
+                  ]);
+              }
+              if (payload._tag === "WorkerInputRequested")
+                outstanding.set(`worker:${payload.admission.messageId}`, [
+                  ...(outstanding.get(`worker:${payload.admission.messageId}`) ?? []),
+                  entry,
+                ]);
+              if (payload._tag === "WorkerInputCompleted") {
+                if (payload.effectsResolved) {
+                  outstanding.delete(`worker:${payload.messageId}`);
+                  unverifiedWorkerInputs.delete(payload.messageId);
+                } else unverifiedWorkerInputs.add(payload.messageId);
+              }
+            }
             threads.set(request.threadId, {
               ...thread,
+              byId,
+              workerRecords,
+              peerCount,
+              runInputs,
+              outstanding,
+              unverifiedWorkerInputs,
               tailSequence: lastSequence,
               tailDigest: digest,
               records: [...thread.records, ...records],
@@ -426,6 +513,14 @@ const makeThreadStore = Effect.gen(function* () {
       }),
   );
 
+  const countPeerMessages: NonNullable<ThreadStore["Service"]["countPeerMessages"]> =
+    Effect.fnUntraced(function* (request) {
+      yield* validate(ThreadPeerCountRequest, "countPeerMessages", request);
+      const thread = yield* findThread(yield* Ref.get(state), request.threadId);
+
+      return Math.min(thread.peerCount, request.limit);
+    });
+
   const readSnapshot = Effect.fn("MemoryThreadStore.readSnapshot")(
     (threadId: ThreadId, afterSequence: CanonicalSequence | undefined, limit: number) =>
       Ref.get(state).pipe(
@@ -442,7 +537,61 @@ const makeThreadStore = Effect.gen(function* () {
   const read: ThreadStore["Service"]["read"] = (unvalidated) =>
     Stream.unwrap(
       Effect.gen(function* () {
-        const request = yield* validate(ThreadRead, "read", unvalidated);
+        const request = yield* validate(ThreadReadRequest, "read", unvalidated);
+
+        if ("selection" in request) {
+          const thread = yield* findThread(yield* Ref.get(state), request.threadId);
+          const selection = request.selection;
+
+          if (
+            "expectedTailSequence" in selection &&
+            (selection.expectedTailSequence !== thread.tailSequence ||
+              selection.expectedTailDigest !== thread.tailDigest)
+          )
+            return yield* storeError("selected read", "Canonical tail changed");
+          let records: ReadonlyArray<CanonicalRecordEnvelope>;
+
+          switch (selection._tag) {
+            case "RecordId": {
+              const record = thread.byId.get(selection.recordId);
+
+              records = record === undefined ? [] : [record];
+              break;
+            }
+            case "RunInput": {
+              const input = thread.runInputs.get(selection.runId);
+
+              if (input === null)
+                return yield* storeError("selected read", "Ambiguous original Run input");
+              records = input === undefined ? [] : [input];
+              break;
+            }
+            case "Outstanding":
+              if (thread.unverifiedWorkerInputs.size > 0)
+                return yield* storeError("selected read", "Unverified worker acknowledgement");
+              records = [...thread.outstanding.values()].flat();
+              break;
+            case "WorkerState":
+              records = [
+                ...(thread.workerRecords.get("worker") ?? []),
+                ...(thread.workerRecords.get(`subtree:${selection.sourceSubmissionId ?? ""}`) ??
+                  []),
+                ...(selection.sourceSubmissionId === undefined
+                  ? []
+                  : (thread.workerRecords.get(
+                      `joined:${runIdForSubmission(selection.sourceSubmissionId)}`,
+                    ) ?? [])),
+              ];
+              break;
+          }
+
+          return Stream.fromIterable(
+            records
+              .filter((entry) => entry.sequence > (request.page.afterSequence ?? 0))
+              .sort((a, b) => a.sequence - b.sequence)
+              .slice(0, request.page.limit),
+          );
+        }
         const records = yield* readSnapshot(request.threadId, request.afterSequence, request.limit);
 
         return Stream.fromIterable(records);
@@ -736,6 +885,7 @@ const makeThreadStore = Effect.gen(function* () {
   });
 
   return ThreadStore.of({
+    countPeerMessages,
     materialize,
     append,
     read,

@@ -1,6 +1,7 @@
 import * as Schema from "effect/Schema";
+import type * as SchemaAST from "effect/SchemaAST";
 
-import * as TypeSafeSchema from "../TypeSafeSchema.ts";
+import * as DecisionSchema from "../DecisionSchema.ts";
 
 // Permit floating-point serialization error without changing provider values.
 const tolerance = 1e-6;
@@ -11,33 +12,21 @@ const probabilitySum = Schema.makeFilter(
   { expected: "probabilities summing to 1 (within 1e-6)" },
 );
 
-// Jev Choice responses have been observed with two-decimal probabilities totaling 0.99.
-// Limit compatibility to one percentage point, even for very large option catalogues.
-// Score sums/weighting retain their strict checks; no Score rounding contract is assumed.
-export const choiceProbabilitySum = Schema.makeFilter(
-  (probabilities: Readonly<Record<string, number>>) => {
-    const values = Object.values(probabilities);
-    const error = Math.abs(values.reduce((sum, value) => sum + value, 0) - 1);
+const distribution = (
+  keys: ReadonlyArray<string>,
+  sumCheck: SchemaAST.Check<Readonly<Record<string, number>>> = probabilitySum,
+) => Schema.Record(Schema.Literals(keys), DecisionSchema.Probability).check(sumCheck);
 
-    return (
-      error <= tolerance ||
-      (error <= Math.min(0.01, values.length * 0.005) + tolerance &&
-        values.every((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8))
-    );
-  },
-  { expected: "probabilities summing to 1 within bounded two-decimal Choice rounding" },
-);
-
-const distribution = (keys: ReadonlyArray<string>, sumCheck = probabilitySum) =>
-  Schema.Record(Schema.Literals(keys), TypeSafeSchema.Probability).check(sumCheck);
-
-const answerFor = (question: TypeSafeSchema.Question) => {
+const answerFor = (
+  question: DecisionSchema.Question,
+  choiceProbabilitySum: SchemaAST.Check<Readonly<Record<string, number>>> | undefined,
+) => {
   switch (question.type) {
     case "choice": {
       const keys = Object.keys(question.criteria);
 
       return Schema.Struct({
-        ...TypeSafeSchema.ChoiceAnswer.fields,
+        ...DecisionSchema.ChoiceAnswer.fields,
         choice: Schema.Literals(keys),
         probabilities: distribution(keys, choiceProbabilitySum),
       }).check(
@@ -56,7 +45,7 @@ const answerFor = (question: TypeSafeSchema.Question) => {
       );
 
       return Schema.Struct({
-        ...TypeSafeSchema.ScoreAnswer.fields,
+        ...DecisionSchema.ScoreAnswer.fields,
         score: Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: maxLevel })),
         legend: Schema.Struct(
           Object.fromEntries(
@@ -79,23 +68,30 @@ const answerFor = (question: TypeSafeSchema.Question) => {
         ),
       );
     }
-    case "noul":
-      return TypeSafeSchema.NoulAnswer;
+    case "probability":
+      return DecisionSchema.ProbabilityAnswer;
   }
 };
 
 // The overload describes the dependent type enforced by the literal keys and
 // per-question schemas below. No JSON value is asserted to have that type.
-export function responseFor<const Q extends TypeSafeSchema.Questions>(
+export function responseFor<const Q extends DecisionSchema.Questions>(
   questions: Q,
-): Schema.Codec<TypeSafeSchema.EvaluateResponse<Q>>;
+  choiceProbabilitySum?: SchemaAST.Check<Readonly<Record<string, number>>>,
+): Schema.Codec<DecisionSchema.EvaluateResponse<Q>>;
 
-export function responseFor(questions: TypeSafeSchema.Questions): Schema.Top {
+export function responseFor(
+  questions: DecisionSchema.Questions,
+  choiceProbabilitySum?: SchemaAST.Check<Readonly<Record<string, number>>>,
+): Schema.Top {
   return Schema.Struct({
-    ...TypeSafeSchema.EvaluateResponse.fields,
+    ...DecisionSchema.EvaluateResponse.fields,
     answers: Schema.Struct(
       Object.fromEntries(
-        Object.entries(questions).map(([id, question]) => [id, answerFor(question)]),
+        Object.entries(questions).map(([id, question]) => [
+          id,
+          answerFor(question, choiceProbabilitySum),
+        ]),
       ),
     ),
   });

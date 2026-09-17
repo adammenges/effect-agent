@@ -56,6 +56,7 @@ const ChangesetConfig = Schema.Struct({
 });
 
 const WorkflowStep = Schema.Struct({
+  "continue-on-error": Schema.optionalKey(Schema.Boolean),
   id: Schema.optionalKey(Schema.String),
   name: Schema.optionalKey(Schema.String),
   if: Schema.optionalKey(Schema.String),
@@ -798,7 +799,7 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
         const publisher = workflow.jobs["publish-action"];
         const condition = publisher?.if;
 
-        expect(publisher?.needs).toEqual(["checks", "test", "build"]);
+        expect(publisher?.needs).toEqual(["release-proof", "checks", "test", "build"]);
         if (condition === undefined)
           return yield* Effect.die("Missing Action publication condition");
 
@@ -830,6 +831,7 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
           const actual: unknown = runInNewContext(expression, {
             github: { event_name: event, ref },
             needs: {
+              "release-proof": { result: "skipped", outputs: { fast: "" } },
               checks: { result: checks },
               test: { result: tests },
               build: { result: build },
@@ -843,6 +845,25 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
           expect(actual, JSON.stringify({ event, ref, cancelled, checks, tests, build })).toBe(
             eligible,
           );
+        }
+        for (const [fast, proof, build, eligible] of [
+          ["true", "success", "success", true],
+          ["true", "success", "failure", false],
+          ["true", "failure", "success", false],
+          ["false", "success", "success", false],
+        ] as const) {
+          expect(
+            runInNewContext(expression, {
+              github: { event_name: "push", ref: "refs/heads/main" },
+              needs: {
+                "release-proof": { result: proof, outputs: { fast } },
+                checks: { result: "skipped" },
+                test: { result: "skipped" },
+                build: { result: build },
+              },
+              cancelled: () => false,
+            }),
+          ).toBe(eligible);
         }
       }),
   );
@@ -984,9 +1005,26 @@ layer(NodeServices.layer)("workspace toolchain", (it) => {
         "pull-requests": "read",
       });
       expect(workflowStep(ci, "release-proof", "Check out trusted base verifier")?.with).toEqual({
-        ref: "${{ github.event.pull_request.base.sha }}",
+        ref: "${{ github.event.pull_request.base.sha || github.event.before }}",
         "persist-credentials": false,
       });
+      expect(
+        workflowStep(ci, "build", "Restore verified version PR build")?.["continue-on-error"],
+      ).toBe(true);
+      const buildCondition = workflowStep(ci, "build", "Build packages, examples, and docs")?.if;
+
+      if (buildCondition === undefined) return yield* Effect.die("Missing build fallback");
+      for (const [outcome, rebuild] of [
+        ["success", false],
+        ["failure", true],
+        ["skipped", true],
+      ] as const) {
+        expect(
+          runInNewContext(buildCondition.replace(/^\$\{\{\s*|\s*\}\}$/g, ""), {
+            steps: { restore: { outcome } },
+          }),
+        ).toBe(rebuild);
+      }
       const script = workflowStep(ci, "ready", "Verify all required gates passed")?.run;
 
       if (script === undefined) return yield* Effect.die("Missing ready fan-in");

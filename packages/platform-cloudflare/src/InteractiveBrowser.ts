@@ -530,11 +530,13 @@ export class BrowserRunInteractiveHost extends Context.Service<
 
 const makeProductionRequest = (
   request: HTTPRequest,
-  resolveRequest?: (request: HTTPRequest) => Promise<void>,
+  signal: AbortSignal,
+  resolveRequest?: (request: HTTPRequest, signal: AbortSignal) => Promise<void>,
 ): BrowserRunInteractiveRequest => ({
   url: () => request.url(),
   abort: () => request.abort("blockedbyclient"),
-  continue: () => (resolveRequest === undefined ? request.continue() : resolveRequest(request)),
+  continue: () =>
+    resolveRequest === undefined ? request.continue() : resolveRequest(request, signal),
 });
 
 const makeProductionCdpSession = (session: CDPSession): BrowserRunInteractiveCdpSession => ({
@@ -1246,11 +1248,14 @@ const guardedPageInput = async (
 const makeProductionPage = (
   page: Page,
   originOverride?: BrowserRunOriginOverride,
-  resolveRequest?: (request: HTTPRequest) => Promise<void>,
+  resolveRequest?: (request: HTTPRequest, signal: AbortSignal) => Promise<void>,
 ): BrowserRunInteractivePage => {
   const prepareFileSelection = makeFileSelection(page);
   const listeners = new Map<BrowserRunInteractiveRequestListener, (request: HTTPRequest) => void>();
   let socketGuard: CDPSession | undefined;
+  const pendingRequests = new AbortController();
+
+  if (originOverride !== undefined) page.once("close", () => pendingRequests.abort());
 
   return {
     identity: async () => {
@@ -1268,6 +1273,7 @@ const makeProductionPage = (
       }
     },
     close: async () => {
+      pendingRequests.abort();
       if (!page.browser().isConnected()) return;
       try {
         await page.close();
@@ -1290,7 +1296,7 @@ const makeProductionPage = (
     },
     onRequest: (listener) => {
       const sdkListener = (request: HTTPRequest) =>
-        listener(makeProductionRequest(request, resolveRequest));
+        listener(makeProductionRequest(request, pendingRequests.signal, resolveRequest));
 
       listeners.set(listener, sdkListener);
       page.on("request", sdkListener);
@@ -1409,7 +1415,7 @@ const makeProductionContext = (
   context: BrowserContext,
   viewport?: BrowserRunViewport,
   originOverride?: BrowserRunOriginOverride,
-  resolveRequest?: (request: HTTPRequest) => Promise<void>,
+  resolveRequest?: (request: HTTPRequest, signal: AbortSignal) => Promise<void>,
 ): BrowserRunInteractiveContext => ({
   newPage: async () => {
     const page = await context.newPage();
@@ -1432,7 +1438,7 @@ const makeProductionBrowser = (
   browser: Browser,
   viewport?: BrowserRunViewport,
   originOverride?: BrowserRunOriginOverride,
-  resolveRequest?: (request: HTTPRequest) => Promise<void>,
+  resolveRequest?: (request: HTTPRequest, signal: AbortSignal) => Promise<void>,
 ): BrowserRunInteractiveBrowser => ({
   supportsHandoff: originOverride === undefined,
   ...(originOverride === undefined ? { detach: () => browser.disconnect() } : {}),

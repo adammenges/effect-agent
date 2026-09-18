@@ -79,7 +79,7 @@ export const makeOriginOverride = Effect.fnUntraced(function* (override: Browser
     return url.href;
   };
 
-  return (request: HTTPRequest): Promise<void> => {
+  return (request: HTTPRequest, signal: AbortSignal): Promise<void> => {
     const browserUrl = new URL(request.url());
 
     if (browserUrl.origin !== production.origin) return request.continue();
@@ -210,7 +210,7 @@ export const makeOriginOverride = Effect.fnUntraced(function* (override: Browser
       Effect.withTracerEnabled(false),
     );
 
-    return Effect.runPromiseWith(context)(mapped).catch(async (cause) => {
+    return Effect.runPromiseWith(context)(mapped, { signal }).catch(async (cause) => {
       // The host records the failure. Never continue a failed mapped request.
       if (!request.isInterceptResolutionHandled()) await request.abort("failed");
       throw cause;

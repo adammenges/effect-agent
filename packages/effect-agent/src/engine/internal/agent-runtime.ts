@@ -25,7 +25,7 @@ import {
 } from "effect";
 import { Tool, AiError, LanguageModel, Model, Prompt, Response, Toolkit } from "effect/unstable/ai";
 
-import type * as Agent from "../../core/Agent.ts";
+import * as Agent from "../../core/Agent.ts";
 import {
   type CompletionToolDeclaration,
   type CompletionFromToolDeclaration,
@@ -515,6 +515,8 @@ type InterpreterRequirements<
   | InstructionRequirements;
 
 interface RunContext {
+  /** A thread resolver owns model identity; context hooks must not replace it. */
+  readonly resolvedModel: boolean;
   readonly updates: Map<string, Update>;
   readonly validateUpdate: (value: Schema.Json) => Effect.Effect<void, UpdateError>;
   updateBytes: number;
@@ -5399,6 +5401,16 @@ const makeTurn = <
       const modelContext: PreparedRunContext =
         options.context === undefined ? { prompt } : yield* options.context.prepare(contextRequest);
 
+      if (context.resolvedModel && modelContext.modelCall !== undefined) {
+        return yield* new AiError.AiError({
+          module: "AgentRuntime",
+          method: "resolveModel",
+          reason: new AiError.InvalidRequestError({
+            description: "Context preparation cannot replace a thread-resolved model",
+          }),
+        });
+      }
+
       const callContext =
         modelContext.modelCall === undefined
           ? undefined
@@ -7970,7 +7982,11 @@ function streamWithCompletion<
                     Effect.mapError(() => new UpdateError({ reason: "validation" })),
                   );
 
+          const languageModel = yield* LanguageModel.LanguageModel;
+          const resolver = Agent.isModelResolver(languageModel) ? languageModel : undefined;
+
           const context: RunContext = {
+            resolvedModel: resolver !== undefined,
             validateUpdate,
             updates: new Map(),
             updateBytes: 0,
@@ -8259,7 +8275,7 @@ function streamWithCompletion<
               // flatMap releases its child pull and Scope before taking that
               // request, so prior traces and prepared prompts do not remain
               // reachable through recursively nested Stream.concat descriptions.
-              return Stream.fromEffectRepeat(
+              const turns = Stream.fromEffectRepeat(
                 Effect.suspend(() => {
                   const current = pending;
 
@@ -8299,6 +8315,43 @@ function streamWithCompletion<
                   }),
                 ),
               );
+
+              if (resolver === undefined) return turns;
+
+              const catalog = yield* eligibleCatalog(
+                agent.definition,
+                { threadId, runId, turn: pending.turn, input: context.input },
+                options.subagentGrant,
+                options.delegationDepth ?? options.parentLink?.depth ?? 0,
+              );
+
+              const selectionPrompt = yield* Schema.encodeEffect(
+                Schema.fromJsonString(Prompt.Prompt),
+              )(pending.prompt).pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new AiError.AiError({
+                      module: "AgentRuntime",
+                      method: "resolveModel",
+                      reason: new AiError.InvalidRequestError({
+                        description: `Cannot encode model selection context: ${cause.message}`,
+                      }),
+                    }),
+                ),
+              );
+
+              const selected = yield* resolver.resolve({
+                threadId,
+                state: {
+                  prompt: selectionPrompt,
+                  tools: catalog.map(({ tool }) => ({
+                    name: tool.name,
+                    description: tool.description ?? "",
+                  })),
+                },
+              });
+
+              return turns.pipe(Stream.provide(selected, { local: true }));
             }),
           );
 

@@ -103,6 +103,14 @@ it.live(
       const received: Array<{ url: string; method: string; cookie: string; body: string }> = [];
       const staging = "http://localhost";
       const destinations: string[] = [];
+      let started: () => void = () => {};
+      let closed: () => void = () => {};
+      const pendingStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const pendingClosed = new Promise<void>((resolve) => {
+        closed = resolve;
+      });
 
       const upstream = yield* server((request, response) => {
         const chunks: Buffer[] = [];
@@ -115,7 +123,12 @@ it.live(
             cookie: request.headers.cookie ?? "",
             body: Buffer.concat(chunks).toString(),
           });
-          if (request.url === "/redirect") {
+          if (request.url === "/pending") {
+            response.writeHead(200, { "content-type": "text/plain" });
+            response.write("pending");
+            response.once("close", closed);
+            started();
+          } else if (request.url === "/redirect") {
             response
               .writeHead(302, {
                 location: `${staging}/after-redirect`,
@@ -278,6 +291,12 @@ it.live(
         expect(
           yield* session.handoff({ instructions: "Test", timeout: 1_000 }).pipe(Effect.flip),
         ).toMatchObject({ _tag: "InteractiveBrowserUnsupportedError" });
+        yield* native(() =>
+          page.evaluate(() => {
+            void fetch("/pending").catch(() => {});
+          }),
+        );
+        yield* native(() => pendingStarted);
 
         const failure = yield* session.handle
           .navigate(BrowserNavigateRequest.make({ url: `${production}/leave` }))
@@ -285,6 +304,8 @@ it.live(
 
         expect(failure).toMatchObject({ _tag: "InteractiveBrowserActionError" });
         expect(productionRequests).toBe(baseline);
+        yield* session.close;
+        yield* native(() => pendingClosed).pipe(Effect.timeout("2 seconds"));
       }).pipe(
         Effect.scoped,
         Effect.provide(live),
